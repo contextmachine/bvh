@@ -26,12 +26,12 @@ inline void test_raycast1( const std::vector<Ray<vec3>> &grid, const BVH tree,co
   hits.resize(grid.size());
   mask.resize(grid.size());
   for (int i = 0; i < grid.size(); ++i) {
-    std::vector<vec3> hits_local ;
+    std::vector<std::pair<double,vec3>> hits_local ;
     auto& ray=grid[i];
     auto end=ray.start+ray.direction;
     raycast(ray,tree, tris,hits_local);
     if (hits_local.size() > 0) {
-      hits[i]=hits_local[0];
+      hits[i]=hits_local[0].second;
 
       mask[i]=true;
     } else {
@@ -45,7 +45,7 @@ inline void test_raycast1( const std::vector<Ray<vec3>> &grid, const BVH tree,co
 }
 
 
-inline void test_raycast2( const std::vector<Ray<vec3>> &grid, const BVH tree,const std::vector<Tri<vec3>> &tris, std::vector<vec3> &hits, std::vector<size_t> &counts) {
+inline void test_raycast2( const std::vector<Ray<vec3>> &grid, const BVH tree,const std::vector<Tri<vec3>> &tris, std::vector<std::pair<double,vec3>> &hits, std::vector<size_t> &counts) {
 
   raycast(grid,tree,tris,hits,counts);
 
@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
 
   std::cout <<std::endl;
 
-  std::vector<vec3> hits2;
+  std::vector<std::pair<double, vec3>> hits2;
   std::vector<size_t> counts;
   const auto start2 = std::chrono::high_resolution_clock::now();
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
   std::cout << "[";
   for (int i = 0; i < hits2.size(); ++i) {
     auto& hit=hits2[i];
-    std::cout << hit << ", ";
+    std::cout << hit.second << ", ";
 
   }
   std::cout << "]"<<std::endl;

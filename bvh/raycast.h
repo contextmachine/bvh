@@ -12,8 +12,8 @@
 
 namespace bvh {
     namespace detail {
-        inline void raycast_internal(const Segm<vec<double, 3> > &inp, const BVH &bvh, size_t node_idx,
-                                     std::vector<vec<double, 3> > &hits, const std::vector<Tri<vec3d> > &primitives) {
+        inline void raycast_internal(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
+                                     std::vector<std::pair<double,vec<double, 3>> > &hits, const std::vector<Tri<vec3d> > &primitives) {
             auto &node = bvh.nodes[node_idx];
             Segm<vec<double, 3> > out;
             bool result = node.bbox.clip(inp, out);
@@ -25,11 +25,15 @@ namespace bvh {
                     int res = intersect_triangle_segment<double>(primitive.a, primitive.b, primitive.c, inp.start,
                                                                  out.end, hit,
                                                                  1e-8);
-                    if (res > 0) { hits.push_back(hit); }
+
+                    if (res > 0) {
+
+                        hits.push_back( std::make_pair(dir.dot(hit-inp.start),hit));
+                    }
                 } else {
 
-                    raycast_internal(inp, bvh, node.left, hits, primitives);
-                    raycast_internal(inp, bvh, node.right, hits, primitives);
+                    raycast_internal(inp,dir, bvh, node.left, hits, primitives);
+                    raycast_internal(inp, dir,bvh, node.right, hits, primitives);
                 }
             }
         }
@@ -71,7 +75,7 @@ namespace bvh {
     inline void raycast(const Ray<vec<double, 3> > &ray,
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
-                        std::vector<vec3d> &hits) {
+                        std::vector<std::pair<double,vec3d>> &hits) {
         double tmin = 0;
         double tmax = 0;
         bool res = bvh.nodes[0].bbox.intersectRay(ray, tmin, tmax);
@@ -80,7 +84,16 @@ namespace bvh {
 
         Segm<vec<double, 3> > inp = {ray.start, ray.start + ray.direction * tmax};
 
-        detail::raycast_internal(inp, bvh, 0, hits, primitives);
+        detail::raycast_internal(inp,ray.direction, bvh, 0, hits, primitives);
+        std::sort(hits.begin(), hits.end(),[](auto const& lhs, auto const& rhs) {
+            return lhs.first < rhs.first;
+        });
+
+
+
+
+
+
 
     }
 
@@ -107,6 +120,9 @@ namespace bvh {
         Segm<vec<double, 3> > inp = {ray.start, ray.start + ray.direction * tmax};
 
         detail::raycast_internal(inp, bvh, 0,  primitives,counts);
+
+
+
     }
     /**
      * Performs raycasting for a segment against a BVH (Bounding Volume Hierarchy) and a set of primitives.
@@ -119,8 +135,8 @@ namespace bvh {
      */
     inline void raycast(const Segm<vec<double, 3> > &segm,
                         const BVH &bvh,
-                        const std::vector<Tri<vec3d> > &primitives, std::vector<vec3d> &hits) {
-        detail::raycast_internal(segm, bvh, 0, hits, primitives);
+                        const std::vector<Tri<vec3d> > &primitives, std::vector<std::pair<double,vec3d>> &hits) {
+        detail::raycast_internal(segm,segm.end-segm.start, bvh, 0, hits, primitives);
     }
 
     /**
@@ -137,16 +153,31 @@ namespace bvh {
 
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
-                        std::vector<vec3d> &hits,
+                        std::vector<std::pair<double,vec3d>> &hits,
                         std::vector<size_t> &counts) {
         hits.reserve(rays.size() * 2);
         counts.resize(rays.size());
-
+        std::vector<std::pair<double,vec<double, 3>>> tmp;
         for (size_t i = 0; i < rays.size(); ++i) {
             const size_t size1 = hits.size();
-            raycast(rays[i], bvh, primitives, hits);
+            double tmin = 0;
+            double tmax = 0;
+            auto& ray=rays[i];
+            bool res = bvh.nodes[0].bbox.intersectRay(ray, tmin, tmax);
 
-            counts[i] = hits.size() - size1;
+            if (res == 0) { continue; };
+
+            Segm<vec<double, 3> > inp = {ray.start, ray.start + ray.direction * tmax};
+
+            detail::raycast_internal(inp,ray.direction, bvh, 0, tmp, primitives);
+            counts[i] = tmp.size();
+            std::sort(tmp.begin(), tmp.end(),[](auto const& lhs, auto const& rhs) {
+                return lhs.first < rhs.first;
+            });
+            for (int j = 0; j <   counts[i]; ++j) {
+                hits.push_back(std::move(tmp[j]));
+            }
+            tmp.clear();
         }
     }
 
