@@ -19,9 +19,8 @@
 #include <cassert>
 #include <cmath>
 #include <stdexcept>
-#include "../src/vec.h"  // Include your refactored single-header vector library
-#include "src/aabb.h"
-#include "src/bvh.h"
+#include "bvh/vec.h"  // Include your refactored single-header vector library
+
 using namespace bvh;
 
 // Helper: floating-point approximate comparison for tests.

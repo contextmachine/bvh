@@ -7,9 +7,9 @@
 // -march=armv8-a+simd -O3 -I$PWD/..
 #include <cassert>
 
-#include "../src/vec.h"
-#include "../src/bvh.h"
-#include "../src/aabb.h"
+#include "bvh/vec.h"
+#include "bvh/bvh.h"
+#include "bvh/aabb.h"
 #include <chrono>
 #include <cstring>
 #include <iostream>

@@ -5,8 +5,8 @@
 #ifndef MOLLER_H
 #define MOLLER_H
 #include <cmath>
-#include <src/defines.h>
-#include <src/vec.h>
+#include "defines.h"
+#include "vec.h"
 
 namespace bvh {
     namespace detail {

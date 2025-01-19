@@ -40,7 +40,7 @@ SOFTWARE.
 #include <cstring>
 #include <sstream>
 #include <vector>
-#include "../src/vec.h"
+#include "../bvh/vec.h"
 namespace bvh {
 #define UTILS_EPS_DELTA 1e-12
 

@@ -2,7 +2,7 @@ project('bvh', 'cpp',
         version : '1.0.0',
         default_options : ['warning_level=3', 'cpp_std=c++17','optimization=3'])
 # Detect the host operating system
-simd_args = ['-flto','-O3']
+simd_args = ['-flto']
 link_args=[ '-flto']
 if host_machine.system() == 'darwin'
     #simd_args = ['-march=armv8-a+simd']
@@ -25,7 +25,9 @@ message('LINK ARGS:',link_args)
 message('CXX ARGS',simd_args)
 add_project_arguments(simd_args, language: 'cpp')
 my_inc = include_directories(['.'])
-bvh = executable('bvh', 'main.cpp', install : false, include_directories : my_inc)
+#bvh = executable('bvh', 'main.cpp', install : false, include_directories : my_inc)
+#test('test', bvh)
 
-test('test', bvh)
+libbvh=shared_library('bvh', ['bvh/vec.h','bvh/aabb.h','bvh/bvh.h','bvh/prims.h','bvh/moller.h','bvh/raycast.h'] , version : '0.1.0', install : false, include_directories : my_inc)
+libbvh_dep = declare_dependency(link_with : libbvh, include_directories : my_inc)
 subdir('tests')

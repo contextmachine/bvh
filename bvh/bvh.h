@@ -9,7 +9,7 @@
 #include <limits>
 #include "vec.h"    // Must include the provided "vec.h"
 #include "aabb.h"   // Must include the provided "aabb.h"
-
+#include "raycast.h"
 
 namespace bvh {
     /*****************************************************************************************

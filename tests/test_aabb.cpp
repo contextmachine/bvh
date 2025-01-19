@@ -17,9 +17,8 @@
 
 #include <iostream>
 #include <cassert>
-#include <vector>
-#include "../src/vec.h"
-#include "../src/aabb.h"
+#include "bvh/vec.h"
+#include "bvh/aabb.h"
 using namespace bvh;
 
 // Helper: floating-point approximate comparison for tests.
