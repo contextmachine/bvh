@@ -34,6 +34,16 @@ namespace bvh {
     }
 
 
+    /**
+     * Performs raycasting for a given ray against a BVH (Bounding Volume Hierarchy) and a set of triangular primitives.
+     * This method computes the intersection points of the ray with the triangular primitives while utilizing the BVH
+     * structure for efficient spatial query.
+     *
+     * @param ray The ray to be tested for intersections, specified by an origin and direction.
+     * @param bvh The bounding volume hierarchy used for spatial partitioning and efficient intersection testing.
+     * @param primitives A vector of triangular primitives against which the ray will be tested.
+     * @param hits A vector to store the resulting intersection points. If the ray intersects any triangles, the points of intersection are appended to this vector.
+     */
     inline void raycast(const Ray<vec<double, 3> > &ray,
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
@@ -49,27 +59,47 @@ namespace bvh {
         detail::raycast_internal(inp, bvh, 0, hits, primitives);
     }
 
+    /**
+     * Performs raycasting for a segment against a BVH (Bounding Volume Hierarchy) and a set of primitives.
+     * This method determines the intersection points where the segment intersects the primitives.
+     *
+     * @param segm The segment to be tested for intersections.
+     * @param bvh The bounding volume hierarchy used for efficient intersection testing.
+     * @param primitives A vector of triangular primitives against which the segment will be tested.
+     * @param hits A vector to store the intersection points. The results of the segment intersections are appended to this vector.
+     */
     inline void raycast(const Segm<vec<double, 3> > &segm,
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives, std::vector<vec3d> &hits) {
         detail::raycast_internal(segm, bvh, 0, hits, primitives);
     }
 
+    /**
+     * Performs raycasting for a collection of rays against a BVH (Bounding Volume Hierarchy) and a set of primitives.
+     * This method finds intersection points where rays intersect the primitives, calculates the hit points, and counts the number of hits per ray.
+     *
+     * @param rays A vector of rays to be tested for intersections.
+     * @param bvh The bounding volume hierarchy used for efficient intersection testing.
+     * @param primitives A vector of triangular primitives against which the rays will be tested.
+     * @param hits A vector to store the intersection points. The results of the ray intersections are appended to this vector.
+     * @param counts A vector storing the count of intersection hits for each ray. Its size will be equal to the size of the input ray vector.
+     */
     inline void raycast(const std::vector<Ray<vec<double, 3> > > &rays,
 
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
                         std::vector<vec3d> &hits,
-                        std::vector<size_t> &offsets) {
+                        std::vector<size_t> &counts) {
         hits.reserve(rays.size() * 2);
-        offsets.resize(rays.size());
+        counts.resize(rays.size());
 
         for (size_t i = 0; i < rays.size(); ++i) {
             const size_t size1 = hits.size();
             raycast(rays[i], bvh, primitives, hits);
-            offsets[i] = hits.size() - size1;
+            counts[i] = hits.size() - size1;
         }
     }
+
 
 
 }

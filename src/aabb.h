@@ -30,6 +30,16 @@ T sdBBox(const Vec &p,const Vec &b) {
  *  Primary Template AABB< vec<T,N> >
  *****************************************************************************************/
 template <typename T,size_t N>
+/**
+ * Axis-Aligned Bounding Box (AABB) class.
+ *
+ * Represents a bounding box defined by its minimum and maximum corners in N-dimensional space.
+ * Used for various geometric computations, intersection tests, and bounding operations.
+ *
+ * Template parameters:
+ * - T: Scalar type used for coordinates (e.g., float, double).
+ * - N: Number of dimensions of the bounding box.
+ */
 class AABB {
 public:
     using vec_type    = vec<T,N>;                     // e.g. vec<T,N>

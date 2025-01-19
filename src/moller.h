@@ -56,6 +56,20 @@ namespace bvh {
 
 
     template<typename T>
+    /**
+     * Classifies the intersection point P relative to the triangle defined by the vertices V0, V1, and V2.
+     * The classification determines whether the intersection point lies within the triangle's interior,
+     * at a vertex, or along an edge.
+     *
+     * @param P The intersection point to classify.
+     * @param V0 The first vertex of the triangle.
+     * @param V1 The second vertex of the triangle.
+     * @param V2 The third vertex of the triangle.
+     * @param eps The epsilon value for numerical precision, with a default value.
+     * @return Returns 1 if the point lies within the interior of the triangle.
+     *         Returns 2 if the point lies at any of the triangle's vertices.
+     *         Returns 3 if the point lies along any of the triangle's edges.
+     */
     inline int classify_intersection(vec<T, 3> &P, vec<T, 3> &V0, vec<T, 3> &V1, vec<T, 3> &V2,
                                      const T eps = CMMCORE_EPSILON<T>()) noexcept {
         /*
@@ -89,6 +103,21 @@ namespace bvh {
 
 
     template<typename T>
+    /**
+     * Computes the intersection between a triangle and a line segment using the
+     * Möller–Trumbore intersection algorithm, adapted for segments.
+     *
+     * @param V0 The first vertex of the triangle.
+     * @param V1 The second vertex of the triangle.
+     * @param V2 The third vertex of the triangle.
+     * @param S The starting point of the line segment.
+     * @param E The ending point of the line segment.
+     * @param I Reference to a vector where the intersection point will be stored
+     *          if an intersection exists.
+     * @param eps The epsilon value for numerical precision, with a default value.
+     * @return Returns 1 if the intersection exists and is within the bounds of
+     *         the [0,1] segment parameters. Returns 0 otherwise.
+     */
     inline int intersect_triangle_segment(
         const vec<T, 3> &V0, const vec<T, 3> &V1, const vec<T, 3> &V2,
         const vec<T, 3> &S, const vec<T, 3> &E,

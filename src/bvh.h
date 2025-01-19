@@ -72,12 +72,11 @@ namespace bvh {
         return std::next(begin, midOffset);
     }
 
-    /*****************************************************************************************
-     *  BVH class
-     *  - Holds array of BVHNodes
-     *  - root_index = index of the root node in 'nodes'
-     *  - build() builds a balanced BVH from a set of AABB3d
-     *****************************************************************************************/
+
+    /*
+     *  BVH class represents a Bounding Volume Hierarchy (BVH) structure used to efficiently
+     *  organize and query spatial data, such as bounding boxes (AABB3d).
+    */
     class BVH {
     public:
         std::vector<BVHNode> nodes;
@@ -144,7 +143,18 @@ namespace bvh {
         }
 
     public:
-        // Public build interface from a vector of AABB3d
+        /*
+         * Builds a Bounding Volume Hierarchy (BVH) from a list of axis-aligned bounding boxes (AABB).
+         *
+         * @param bboxes A vector of 3D axis-aligned bounding boxes (AABB3d) representing geometric objects.
+         *               Each AABB corresponds to the bounding box of an individual object.
+         * @return A reference to the BVH object after constructing and organizing the tree structure.
+         *
+         * If the input vector of bounding boxes is empty, the BVH is cleared,
+         * and the root index is reset to zero.
+         * The method reserves space for all potential BVH nodes and uses a recursive function to construct
+         * the hierarchy by partitioning the AABBs into spatial subdivisions.
+         */
         BVH &build(const std::vector<AABB3d> &bboxes) {
             if (bboxes.empty()) {
                 nodes.clear();

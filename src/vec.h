@@ -31,6 +31,7 @@ constexpr bool almost_equal(T a, T b, T eps = std::numeric_limits<T>::epsilon())
  *  Primary Template (N-D) - Minimal fallback for arbitrary dimensions
  *****************************************************************************************/
 template <typename T, std::size_t N>
+
 class vec {
 public:
     std::array<T, N> data_{};
