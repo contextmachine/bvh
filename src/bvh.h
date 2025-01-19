@@ -7,8 +7,9 @@
 #include <utility>
 #include <stdexcept>
 #include <limits>
-#include "aabb.h"   // Must include the provided "aabb.h"
 #include "vec.h"    // Must include the provided "vec.h"
+#include "aabb.h"   // Must include the provided "aabb.h"
+
 
 namespace bvh {
     /*****************************************************************************************
@@ -172,6 +173,7 @@ namespace bvh {
             os << "]";
             return os;
         }
+        
     };
 } // end namespace bvh
 #endif

@@ -16,3 +16,22 @@ test_bvh = executable('test_bvh',
 test('test_bvh',
      test_bvh)
 
+# test_aabb
+test_aabb = executable('test_aabb',
+                       'test_aabb.cpp',
+                       include_directories : my_inc,
+                       install : false
+)
+test('test_aabb',
+     test_aabb)
+
+# test_raycast
+test_raycast = executable('test_raycast',
+               'test_raycast.cpp',
+               include_directories : my_inc,
+               install : false
+
+)
+test('test_raycast',
+     test_raycast)
+
