@@ -81,7 +81,7 @@ if sys.platform == "darwin" and platform.machine()=="arm64":
 
 elif sys.platform == "win32":
 
-    compile_args[1] = "/std:c++17"
+    compile_args[1] = "/std:c++20"
     compile_args[0] = "/O2"
     compile_args += [
         '-msse', '-msse2', '-msse3', '-mssse3',
