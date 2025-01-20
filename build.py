@@ -71,13 +71,6 @@ if sys.platform == "darwin" and platform.machine()=="arm64":
     #print("Darwin")
 
 
-    sys.path.append('/opt/homebrew/opt/llvm/bin')
-
-    sys.path.append('/opt/homebrew/opt/llvm/lib')
-    include_dirs+=['/opt/homebrew/opt/llvm/include']
-    link_args+=['-L/opt/homebrew/opt/llvm/lib',"-L/opt/homebrew/opt/llvm/lib/c++" ,"-L/opt/homebrew/opt/llvm/lib/unwind" ,"-lunwind"]
-
-
     compile_args += [ "-mcpu=apple-m1", "-funroll-loops","-flto"]
   
 
