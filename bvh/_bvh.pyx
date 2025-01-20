@@ -4,6 +4,7 @@
 cimport cython
 from libc.stddef cimport size_t
 from cython.operator cimport dereference as deref
+from libc.stdlib cimport malloc,free,realloc
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libc.math cimport modf
@@ -45,7 +46,6 @@ cdef extern from "bvh.h" namespace "bvh" nogil:
         void build(const vector[Tri[vec3d]] &primitives)
 
 cdef extern from "raycast.h" namespace "bvh" nogil:
-    void raycast(const Ray[vec3d] &inp, const BVH &bvh, const vector[Tri[vec3d]] &primitives, size_t &counts)
     void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[size_t] &counts)
     void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[pair[double,vec3d]] &hits, vector[size_t] &counts)
 
@@ -71,7 +71,7 @@ cdef class TriangleSoup:
             self.primitives[i].c.x=triangles[i,2,0]
             self.primitives[i].c.y=triangles[i,2,1]
             self.primitives[i].c.z=triangles[i,2,2]
-        
+
     cdef bint _is_bvh_empty(self):
         return self.bvh.empty()
     def has_bvh(self):
@@ -84,11 +84,13 @@ cdef class TriangleSoup:
         else:
             raise ValueError("BVH already built")
     
-    cdef void raycast_counts(self, double[:,:,:] rays, size_t[:] counts) noexcept nogil:
+    def raycast_counts(self, double[:,:,:] rays, size_t[:] counts=None):
         cdef size_t i;
         cdef size_t n = rays.shape[0]
         cdef vector[Ray[vec3d]] rays_cpp=vector[Ray[vec3d]](n)
         cdef vector[size_t] counts_cpp=vector[size_t]()
+        if counts is None:
+            counts=np.empty((n,),dtype=np.uint)
         for i in range(n):
             rays_cpp[i].start.x=rays[i,0,0]
             rays_cpp[i].start.y=rays[i,0,1]
@@ -97,14 +99,21 @@ cdef class TriangleSoup:
             rays_cpp[i].direction.y=rays[i,1,1]
             rays_cpp[i].direction.z=rays[i,1,2]
         
-        raycast(rays_cpp,self.bvh,self.primitives,counts_cpp)
+        raycast(rays_cpp, self.bvh, self.primitives, counts_cpp)
         for i in range(n):
             counts[i]=counts_cpp[i]
+        return counts
 
-    cdef void raycast_hits(self, double[:,:,:] rays, double[:,:] hits, size_t[:] counts) noexcept nogil:
-        cdef size_t i;
+    def raycast_hits(self, double[:,:,:] rays) :
+        cdef size_t i,row, col;
+        cdef size_t cols=4
+
         cdef size_t n = rays.shape[0]
+        cdef size_t[:] counts=np.empty((n,),dtype=np.uint)
         cdef vector[Ray[vec3d]] rays_cpp=vector[Ray[vec3d]](n)
+        cdef vector[pair[double,vec3d]] hits_cpp=vector[pair[double,vec3d]]()
+        cdef vector[size_t] counts_cpp=vector[size_t]()
+
         for i in range(n):
             rays_cpp[i].start.x=rays[i,0,0]
             rays_cpp[i].start.y=rays[i,0,1]
@@ -112,17 +121,19 @@ cdef class TriangleSoup:
             rays_cpp[i].direction.x=rays[i,1,0]
             rays_cpp[i].direction.y=rays[i,1,1]
             rays_cpp[i].direction.z=rays[i,1,2]
-        cdef vector[pair[double,vec3d]] hits_cpp=vector[pair[double,vec3d]]()
-        cdef vector[size_t] counts_cpp=vector[size_t]()
+
         raycast(rays_cpp,self.bvh,self.primitives,hits_cpp,counts_cpp)
+        cdef double[:,:] hits=np.empty((hits_cpp.size(),4))
+
         for i in range(n):
             counts[i]=counts_cpp[i]
+
+        for i in range(hits_cpp.size()):
             hits[i,0]=hits_cpp[i].second.x
             hits[i,1]=hits_cpp[i].second.y
             hits[i,2]=hits_cpp[i].second.z
             hits[i,3]=hits_cpp[i].first
-        
-
+        return hits,counts
 
     def points_inside(self, double[:,:] points):
         cdef size_t i;
