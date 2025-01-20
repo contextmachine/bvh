@@ -286,6 +286,24 @@ public:
         segm.end   = ray.start + ray.direction * tExit;
         return true;
     }
+    bool inside(const vec_type& pt) const {
+        for (size_t i = 0; i < N; ++i) {
+           if (!( (min[i]<=pt[i]) && (pt[i]<=max[i]) )){
+               return false;
+           }
+        }
+        return true;
+    }
+    bool insideStrict(const vec_type& pt) const {
+
+            for (size_t i = 0; i < N; ++i) {
+                if (!( (min[i]<pt[i]) && (pt[i]<max[i]) )){
+                    return false;
+                }
+            }
+            return true;
+
+    }
 
 
 };
@@ -444,7 +462,13 @@ public:
 
         return true;
     }
+    bool inside(const vec_type& pt) const {
 
+         return (min.x<=pt.x)&&(pt.x<=max.x) &&( min.y<=pt.y) && (pt.y<=max.y);
+     }
+    bool insideStrict(const vec_type& pt) const {
+         return (min.x<pt.x)&&(pt.x<max.x) &&( min.y<pt.y) && (pt.y<max.y);
+     }
 };
 
 /*****************************************************************************************
@@ -460,6 +484,7 @@ public:
 
 
     vec_type min, max, centroid;
+
 
 public:
      AABB()
@@ -851,7 +876,13 @@ public:
         segm.end   = s + dir * tExit;
         return true;
     }
+    bool inside(const vec_type& pt) const {
+         return (min.x<=pt.x)&&(pt.x<=max.x) &&( min.y<=pt.y) && (pt.y<=max.y)&&( min.z<=pt.z) && (pt.z<=max.z);
 
+     }
+    bool insideStrict(const vec_type& pt) const {
+         return (min.x<pt.x)&&(pt.x<max.x) &&( min.y<pt.y) && (pt.y<max.y)&&( min.z<pt.z) && (pt.z<max.z);
+     }
 };
 
 /*****************************************************************************************

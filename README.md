@@ -57,14 +57,28 @@ hits, counts = soup.raycast_hits(rays)
 ```
 
 ### Point Inside Test
-
+Example illustrating obtaining points inside the mesh from an array of points:
 ```python
-# Test if points are inside the mesh
-points = np.array([
-    [0.5, 0.5, 0],  # Point to test
-], dtype=np.float64)
+from bvh import TriangleSoup
 
-inside = soup.points_inside(points)
+mesh=TriangleSoup(...) # construct mesh from triangles
+mesh.build_bvh()
+
+bbx=np.array(mesh.bbox()) # Get mesh bbox
+points_bbox=bbx*3 # Domain of points distribution
+pts=np.random.uniform(points_bbox[0],points_bbox[1], size=(10000,3)) # generate random points
+
+is_pt_in_bbox=np.zeros((pts.shape[0],),bool) # prepare array for an in_root_bbox test result.
+mesh.in_root_bbox(pts,is_pt_in_bbox)
+
+pts_in_bbox=pts[is_pt_in_bbox]
+print(pts_in_bbox.shape) # (327, 3) May be different
+
+is_pt_in_mesh=np.zeros((pts_in_bbox.shape[0],),dtype=bool)
+mesh.points_inside(pts_in_bbox, is_pt_in_mesh)
+
+pts_in_mesh=pts_in_bbox[is_pt_in_mesh]
+print(pts_in_mesh.shape) # (68, 3)  May be different
 ```
 
 ## API Reference

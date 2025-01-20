@@ -88,12 +88,19 @@ namespace bvh {
             return nodes[root_index];
         }
 
+        AABB3d bbox() const {
+            return getRoot().bbox;
+        }
+
         const BVHNode &getRoot() const {
             return nodes[root_index];
         }
         bool empty() const {
             return nodes.empty();
             }
+
+
+
     private:
         // _build_bvh_internal with iterators
         template<typename Iter>
