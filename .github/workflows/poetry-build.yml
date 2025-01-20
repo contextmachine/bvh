@@ -37,6 +37,21 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # ------------------------------------------------------
+      # MacOS: Install LLVM + set environment to use it
+      # ------------------------------------------------------
+      - name: Install LLVM on macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update
+          brew install llvm
+          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm)/bin/clang++" >> $GITHUB_ENV
+          echo "CFLAGS=-fopenmp" >> $GITHUB_ENV
+          echo "CXXFLAGS=-fopenmp" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$(brew --prefix llvm)/include" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$(brew --prefix llvm)/lib -Wl,-rpath,$(brew --prefix llvm)/lib" >> $GITHUB_ENV
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
