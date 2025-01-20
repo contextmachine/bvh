@@ -94,7 +94,7 @@ elif sys.platform == "win32":
     compile_args[0] = "/O2"
 
 
-
+    link_args+=['/openmp']
 
     link_args += compile_args
 
@@ -105,7 +105,7 @@ elif platform.machine()=="x86_64":
     compile_args += ['-lm']
     include_dirs+=['/usr/include/x86_64-linux-gnu']
     link_args += ['-L/usr/lib/x86_64-linux-gnu']
-    link_args += ['-lgomp']
+    link_args += ['-fopenmp','-lgomp']
     compile_args += [
         '-msse', '-msse2', '-msse3', '-mssse3',
         '-msse4.1', '-msse4.2', '-mavx', '-mavx2'
@@ -116,7 +116,7 @@ elif platform.machine() in ["arm64","aarch64"]:
     compile_args+=[ '-lm','-mcpu=native','-march=armv8-a+simd']
    
     compiler_args = ['-flto']
-    link_args += ['-lgomp']
+    link_args += ['-fopenmp','-lgomp']
 
     link_args+=    compile_args
 
