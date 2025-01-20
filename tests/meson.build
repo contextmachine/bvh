@@ -29,7 +29,10 @@ test('test_aabb',
 test_raycast = executable('test_raycast',
                'test_raycast.cpp',
                include_directories : my_inc,
-               install : false
+               install : false,
+     dependencies: [openmp_dep],
+          link_args:link_args
+
 
 )
 test('test_raycast',

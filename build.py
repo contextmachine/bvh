@@ -72,9 +72,18 @@ if sys.platform == "darwin" and platform.machine()=="arm64":
 
 
     compile_args += [ "-mcpu=apple-m1", "-funroll-loops","-flto"]
-  
 
-    
+    OPENMP_PATH = '/opt/homebrew/opt/libomp'
+    if not Path(OPENMP_PATH).exists():
+        warnings.warn('OpenMP is not found. Install it using homebrew:\nbrew install libomp\n')
+    else:
+        compile_args += [
+            '-fopenmp'
+        ]
+        link_args += [f'-L{OPENMP_PATH}/lib', '-fopenmp', '-lomp']
+
+        include_dirs += [f'{OPENMP_PATH}/include']
+
     link_args += compile_args
 
 
@@ -83,12 +92,8 @@ elif sys.platform == "win32":
 
     compile_args[1] = "/std:c++20"
     compile_args[0] = "/O2"
-    compile_args += [
-        '-msse', '-msse2', '-msse3', '-mssse3',
-        '-msse4.1', '-msse4.2', '-mavx', '-mavx2'
-    ]
 
-    compile_args += ['-DMC_COLLISION_SDF_USE_MALLOC=1']
+
 
 
     link_args += compile_args
@@ -100,7 +105,7 @@ elif platform.machine()=="x86_64":
     compile_args += ['-lm']
     include_dirs+=['/usr/include/x86_64-linux-gnu']
     link_args += ['-L/usr/lib/x86_64-linux-gnu']
-
+    link_args += ['-lgomp']
     compile_args += [
         '-msse', '-msse2', '-msse3', '-mssse3',
         '-msse4.1', '-msse4.2', '-mavx', '-mavx2'
@@ -111,7 +116,7 @@ elif platform.machine() in ["arm64","aarch64"]:
     compile_args+=[ '-lm','-mcpu=native','-march=armv8-a+simd']
    
     compiler_args = ['-flto']
- 
+    link_args += ['-lgomp']
 
     link_args+=    compile_args
 

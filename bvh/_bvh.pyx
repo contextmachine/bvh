@@ -8,6 +8,7 @@ from libc.stdlib cimport malloc,free,realloc
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libc.math cimport modf
+from libcpp cimport bool
 cimport numpy as cnp
 import numpy as np
 cnp.import_array()
@@ -48,10 +49,14 @@ cdef extern from "bvh.h" namespace "bvh" nogil:
 cdef extern from "raycast.h" namespace "bvh" nogil:
     void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[size_t] &counts)
     void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[pair[double,vec3d]] &hits, vector[size_t] &counts)
+    void raycast_single_omp(const vector[Ray[vec3d]] &rays,const BVH &bvh,vector[Tri[vec3d]] &primitives,vector[bool] &mask)
 
+
+                            
 cdef class TriangleSoup:
     cdef vector[Tri[vec3d]] primitives
     cdef BVH bvh
+
     def __init__(self, double[:,:,:] triangles):
         
 
@@ -72,18 +77,51 @@ cdef class TriangleSoup:
             self.primitives[i].c.y=triangles[i,2,1]
             self.primitives[i].c.z=triangles[i,2,2]
 
-    cdef bint _is_bvh_empty(self):
-        return self.bvh.empty()
-    def has_bvh(self):
-        cdef bint res=self._is_bvh_empty()
-        return not res
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    @cython.initializedcheck(False)
+    @cython.nonecheck(True)
+    def has_bvh(self):
+        cdef bint res= self.bvh.empty()
+        return not res
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
     def build_bvh(self):
-        if self._is_bvh_empty():
+        if  self.bvh.empty():
             self.bvh.build(self.primitives)
         else:
             raise ValueError("BVH already built")
-    
+
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def raycast_single(self, double[:,:,:] rays, bint[:] mask=None):
+        cdef size_t i;
+        cdef size_t n = rays.shape[0]
+        cdef vector[Ray[vec3d]] rays_cpp=vector[Ray[vec3d]](n)
+        cdef vector[bool] mask_cpp=vector[bool]()
+        if mask is None:
+            mask=np.empty((n,),dtype=np.bool_)
+        for i in range(n):
+            rays_cpp[i].start.x=rays[i,0,0]
+            rays_cpp[i].start.y=rays[i,0,1]
+            rays_cpp[i].start.z=rays[i,0,2]
+            rays_cpp[i].direction.x=rays[i,1,0]
+            rays_cpp[i].direction.y=rays[i,1,1]
+            rays_cpp[i].direction.z=rays[i,1,2]
+        raycast_single_omp(rays_cpp, self.bvh, self.primitives, mask_cpp)
+        for i in range(n):
+          mask[i]=mask_cpp[i]
+        return mask
+
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
     def raycast_counts(self, double[:,:,:] rays, size_t[:] counts=None):
         cdef size_t i;
         cdef size_t n = rays.shape[0]
@@ -104,6 +142,9 @@ cdef class TriangleSoup:
             counts[i]=counts_cpp[i]
         return counts
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
     def raycast_hits(self, double[:,:,:] rays) :
         cdef size_t i,row, col;
         cdef size_t cols=4
@@ -135,6 +176,10 @@ cdef class TriangleSoup:
             hits[i,3]=hits_cpp[i].first
         return hits,counts
 
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
     def points_inside(self, double[:,:] points):
         cdef size_t i;
         cdef size_t n = points.shape[0]

@@ -9,7 +9,7 @@
 #include "aabb.h"
 #include "bvh.h"
 #include "prims.h"
-
+#include <omp.h> // Include this for OpenMP
 namespace bvh {
     namespace detail {
         inline void raycast_internal(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
@@ -56,6 +56,36 @@ namespace bvh {
                     raycast_internal(inp, bvh, node.right, primitives,counts);
                 }
             }
+        }
+        inline bool raycast_internal(const Segm<vec<double, 3> > &inp, const BVH &bvh, size_t node_idx,
+                                         const std::vector<Tri<vec3d> > &primitives) {
+            auto &node = bvh.nodes[node_idx];
+            Segm<vec<double, 3> > out;
+            bool result = node.bbox.clip(inp, out);
+
+            if (result) {
+                if (node.isLeaf()) {
+                    const Tri<vec<double, 3> > &primitive = primitives[node.object];
+                    vec<double, 3> hit;
+                    int res = intersect_triangle_segment<double>(primitive.a, primitive.b, primitive.c, inp.start,
+                                                                 out.end, hit,
+                                                                 1e-8);
+                    if (res > 0) { return true;}
+                } else {
+                    bool res=raycast_internal(inp, bvh, node.left, primitives);
+                    if (res) {
+                        return true;
+                    }
+
+                    res=raycast_internal(inp, bvh, node.right, primitives);
+                    if (res) {
+                        return true;
+                    }
+                }
+
+
+            }
+            return false;
         }
 
 
@@ -203,7 +233,62 @@ namespace bvh {
             raycast(rays[i], bvh, primitives, counts[i]);
         }
     }
+#include <vector>
+#include <omp.h> // Include this for OpenMP
+#include "vec.h"
+#include "moller.h"
+#include "aabb.h"
+#include "bvh.h"
+#include "prims.h"
 
 
-}
+    /**
+     * @brief Parallel raycast multiple rays against the BVH and collect intersections.
+     *
+     * @param rays         A vector of rays to be tested against the BVH.
+     * @param bvh          The BVH data structure (already built).
+     * @param primitives   The triangles (or other primitives) referenced by the BVH.
+     * @param allHits      A vector of hit-lists, one entry per ray in `rays`.
+     */
+    inline void raycast_single_omp(const std::vector<Ray<vec<double, 3>>> &rays,
+                            const BVH &bvh,
+                            const std::vector<Tri<vec3d>> &primitives,
+                            std::vector<bool> &mask)
+    {
+        // Resize and clear output
+        mask.clear();
+        mask.resize(rays.size());
+
+        // Early exit if BVH has no nodes
+        if (bvh.nodes.empty()) {
+            return;
+        }
+
+        const size_t rootIndex = bvh.root_index;
+
+        // Parallel loop over all rays
+        #pragma omp parallel for
+        for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(rays.size()); ++i) {
+            double tmin, tmax;
+            bool intersectsBBox = bvh.nodes[rootIndex].bbox.intersectRay(rays[i], tmin, tmax);
+
+            if (!intersectsBBox) {
+                mask[i]=false;
+                continue;
+            }
+
+            // Clip the ray to the bounding box for consistent intersection checks
+            Segm<vec<double, 3>> segment;
+            segment.start = rays[i].start;
+            segment.end   = rays[i].start + rays[i].direction * tmax;
+
+            // Collect intersections in allHits[i]
+            mask[i]=detail::raycast_internal(segment, bvh, rootIndex, primitives);
+
+        }
+    }
+
+} // namespace bvh
+
+
 #endif //RAYCAST_H

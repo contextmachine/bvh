@@ -4,9 +4,22 @@ project('bvh', 'cpp',
 # Detect the host operating system
 simd_args = ['-flto']
 link_args=[ '-flto']
+
+
 if host_machine.system() == 'darwin'
     #simd_args = ['-march=armv8-a+simd']
      simd_args += ['-mcpu=apple-m1','-funroll-loops']#,#'-flto', ]
+    openmp_dep = dependency('openmp', required: false)
+        # Fallback for macOS where OpenMP is not part of Clang by default
+        if not openmp_dep.found() and host_machine.system() == 'darwin'
+          openmp_dep = cpp.find_library('omp', required: false)
+          message('darwin dep omp:')
+        endif
+        # Ensure OpenMP is found on either platform
+        if not openmp_dep.found()
+
+          error('OpenMP not found! Install libomp on macOS or check your compiler setup on Linux.')
+        endif
 
 elif host_machine.cpu() == 'aarch64'
         simd_args += ['-mcpu=native','-march=armv8-a+simd',]
