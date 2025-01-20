@@ -88,7 +88,7 @@ namespace bvh {
             return nodes[root_index];
         }
 
-        constexpr const BVHNode &getRoot() const {
+        const BVHNode &getRoot() const {
             return nodes[root_index];
         }
         bool empty() const {
