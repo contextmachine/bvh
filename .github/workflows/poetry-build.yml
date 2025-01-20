@@ -17,9 +17,6 @@ jobs:
           - os: windows-latest
             python-version: "3.13"
 
-    defaults:
-      run:
-        shell: bash
     runs-on: ${{ matrix.os }}
 
 
@@ -32,7 +29,6 @@ jobs:
         id: extract_branch
 
       - name: Set up python ${{ matrix.python-version }}
-        id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -59,8 +55,8 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Load cached venv
-        id: cached-pip-wheels
         uses: actions/cache@v3
+        id: cached-pip-wheels
         with:
           path: ~/.cache
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ steps.extract_branch.outputs.branch }}-${{ hashFiles('**/poetry.lock') }}
@@ -69,9 +65,7 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - name: Poetry build
-        run: |
-          source $VENV
-          poetry build
+        run: poetry build
 
       - name: Artifact name
         id: artifactname
