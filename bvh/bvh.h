@@ -9,7 +9,7 @@
 #include <limits>
 #include "vec.h"    // Must include the provided "vec.h"
 #include "aabb.h"   // Must include the provided "aabb.h"
-#include "raycast.h"
+
 
 namespace bvh {
     /*****************************************************************************************
@@ -91,7 +91,9 @@ namespace bvh {
         constexpr const BVHNode &getRoot() const {
             return nodes[root_index];
         }
-
+        bool empty() const {
+            return nodes.empty();
+            }
     private:
         // _build_bvh_internal with iterators
         template<typename Iter>
@@ -176,7 +178,15 @@ namespace bvh {
             root_index = _build_bvh_internal(objects.begin(), objects.end(), 0);
             return *this;
         }
-
+        BVH &build(const std::vector<Tri<vec3d> > &primitives) {
+            std::vector<AABB3d> bboxes(primitives.size());
+            for (size_t i = 0; i < primitives.size(); ++i) {
+                bboxes[i].expand(primitives[i].a);
+                bboxes[i].expand(primitives[i].b);
+                bboxes[i].expand(primitives[i].c);
+            }
+            return build(bboxes);
+        }
         inline friend std::ostream &operator<<(std::ostream &os, const BVH &obj) {
             os << "[";
             obj.print_internal(os, 0);

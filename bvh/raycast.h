@@ -159,7 +159,6 @@ namespace bvh {
         counts.resize(rays.size());
         std::vector<std::pair<double,vec<double, 3>>> tmp;
         for (size_t i = 0; i < rays.size(); ++i) {
-            const size_t size1 = hits.size();
             double tmin = 0;
             double tmax = 0;
             auto& ray=rays[i];
@@ -194,10 +193,10 @@ namespace bvh {
      *        is updated with the number of primitives that the ray intersects.
      */
     inline void raycast(const std::vector<Ray<vec<double, 3> > > &rays,
-
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
-                        std::vector<size_t> &counts) {
+                        std::vector<size_t> &counts
+                        ) {
         counts.resize(rays.size());
 
         for (size_t i = 0; i < rays.size(); ++i) {
