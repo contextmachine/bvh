@@ -31,9 +31,14 @@ class E57Scan(NamedTuple):
 def clip(pts:NDArray[float],mesh:TriangleSoup)->NDArray[int]:
     if not mesh.has_bvh():
         mesh.build_bvh()
-    is_pt_in_bbox = np.zeros((pts.shape[0],), bool)
-    mesh.in_root_bbox(pts, is_pt_in_bbox)
-    pts_in_bbox = pts[is_pt_in_bbox]
+    global_points= pts
+    is_pt_in_bbox = np.zeros((global_points.shape[0],), bool)
+    mesh.in_root_bbox(global_points, is_pt_in_bbox)
+
+    pts_in_bbox = global_points[is_pt_in_bbox]
+    if len(pts_in_bbox)==0:
+        return np.array([],dtype=int)
+
     is_pt_in_mesh = np.zeros((pts_in_bbox.shape[0],), dtype=bool)
     mesh.points_inside(pts_in_bbox, is_pt_in_mesh)
     return np.arange(pts.shape[0],dtype=int)[is_pt_in_bbox][is_pt_in_mesh]
@@ -51,7 +56,11 @@ def clip_e57(mesh: TriangleSoup, source: pye57.E57 | str, target: pye57.E57 | st
                 print(f'{i}/{cnt}',end='\r',flush=True)
                 header, scan = source.get_header(i), source.read_scan_raw(i)
                 points = np.column_stack([scan['cartesianX'], scan['cartesianY'], scan['cartesianZ']])
-                indices: NDArray[int] = clip(points, mesh)
+                pts=source.to_global(points, header.rotation, header.translation)
+
+                indices: NDArray[int] = clip(pts, mesh)
+                if len(indices)==0:
+                    continue
                 new_scan = {k: v[indices] for k, v in scan.items()}
 
                 target.write_scan_raw(new_scan, translation=header.translation, rotation=header.rotation)

@@ -264,8 +264,8 @@ cdef class TriangleSoup:
         raycast(rays_cpp,self.bvh,self.primitives,counts_cpp)
 
         for i in range(n):
-            is_inside=<bool>(counts_cpp[i]%2)
-            inside[i]=is_inside
+
+            inside[i]=(counts_cpp[i]%2)
         return inside
 
         

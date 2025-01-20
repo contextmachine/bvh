@@ -227,10 +227,33 @@ namespace bvh {
                         const std::vector<Tri<vec3d> > &primitives,
                         std::vector<size_t> &counts
                         ) {
-        counts.resize(rays.size());
 
-        for (size_t i = 0; i < rays.size(); ++i) {
-            raycast(rays[i], bvh, primitives, counts[i]);
+        counts.clear();
+        counts.resize(rays.size());
+        const size_t rootIndex = bvh.root_index;
+        // Early exit if BVH has no nodes
+        if (bvh.nodes.empty()) {
+            return;
+        }
+
+        #pragma omp parallel for
+        for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(rays.size()); ++i) {
+            double tmin, tmax;
+            bool intersectsBBox = bvh.nodes[rootIndex].bbox.intersectRay(rays[i], tmin, tmax);
+
+            if (!intersectsBBox) {
+                counts[i]=0;
+                continue;
+            }
+
+            // Clip the ray to the bounding box for consistent intersection checks
+            Segm<vec<double, 3>> segment;
+            segment.start = rays[i].start;
+            segment.end   = rays[i].start + rays[i].direction * tmax;
+
+            // Collect intersections in allHits[i]
+            detail::raycast_internal(segment, bvh, rootIndex, primitives,counts[i]);
+
         }
     }
 #include <vector>
