@@ -10,40 +10,52 @@
 #include <type_traits>
 #include <algorithm>
 #include "prims.h"
+
 namespace bvh {
 namespace detail {
 
 /**
  * Helper for "signed distance" to box, used by sd(...) method:
  * This is not necessary for slab intersection,
- * but was in your original code, so we keep it.
+ * but was in the original code, so we keep it.
  */
-template<typename Vec, typename T=typename Vec::value_type>
-T sdBBox(const Vec &p,const Vec &b) {
-        Vec d = p.abs() - b;
+template<typename Vec, typename T = typename Vec::value_type>
+T sdBBox(const Vec &p, const Vec &b) {
+    Vec d = p.abs() - b;
     return std::min(d.max_val(), T(0)) + d.max(T(0)).length();
-    }
+}
 
 } // end namespace detail
 
 /*****************************************************************************************
- *  Primary Template AABB< vec<T,N> >
+ *  Primary Template AABB< Vec >
+ *
+ *  This handles the general N-dimensional case, where:
+ *    - Vec is typically something like vec<T,N>, with:
+ *         using value_type = T;
+ *         static constexpr std::size_t size = N;
+ *
+ *  The partial specializations below handle explicit cases Vec=vec<T,2>, vec<T,3>, vec<T,4>.
  *****************************************************************************************/
-template <typename T,size_t N>
+template <typename Vec>
 /**
  * Axis-Aligned Bounding Box (AABB) class.
  *
  * Represents a bounding box defined by its minimum and maximum corners in N-dimensional space.
  * Used for various geometric computations, intersection tests, and bounding operations.
  *
- * Template parameters:
- * - T: Scalar type used for coordinates (e.g., float, double).
- * - N: Number of dimensions of the bounding box.
+ * Template parameter:
+ * - Vec: A vector type (e.g. vec<T,N>) that has:
+ *        - using value_type  = T;
+ *        - static constexpr std::size_t size = N;
+ *        - operator[](std::size_t i)
+ *        - .abs(), .max_val(), .max(T) etc., depending on your vector implementation
  */
 class AABB {
 public:
-    using vec_type    = vec<T,N>;                     // e.g. vec<T,N>
-    using scalar_type = T;
+    using scalar_type = typename Vec::value_type; ///< Underlying scalar (e.g. float/double)
+    static constexpr std::size_t N = Vec::size;   ///< Dimensionality (e.g. 2,3,4,...)
+    using vec_type    = Vec;
 
     vec_type min;
     vec_type max;
@@ -57,7 +69,7 @@ public:
     AABB()
     {
         // Initialize "empty" box so any real expansions fix them
-        for(std::size_t i=0; i<N; ++i) {
+        for(std::size_t i = 0; i < N; ++i) {
             min[i] = std::numeric_limits<scalar_type>::max();
             max[i] = std::numeric_limits<scalar_type>::lowest();
         }
@@ -74,9 +86,9 @@ public:
     // Construct from list of points
     AABB(const std::vector<vec_type>& pts)
     {
-        if(pts.empty()) {
+        if (pts.empty()) {
             // define an "empty" box
-            for(std::size_t i=0; i<N; ++i) {
+            for(std::size_t i = 0; i < N; ++i) {
                 min[i] = std::numeric_limits<scalar_type>::max();
                 max[i] = std::numeric_limits<scalar_type>::lowest();
             }
@@ -85,7 +97,7 @@ public:
         }
         min = pts[0];
         max = pts[0];
-        for(std::size_t i=1; i<pts.size(); ++i) {
+        for(std::size_t i = 1; i < pts.size(); ++i) {
             expand(pts[i]);
         }
     }
@@ -96,8 +108,8 @@ public:
     // Overlaps if each dimension's intervals overlap
     bool intersects(const AABB& other) const
     {
-        for(std::size_t i=0; i<N; ++i) {
-            if(min[i] > other.max[i] || max[i] < other.min[i]) {
+        for(std::size_t i = 0; i < N; ++i) {
+            if (min[i] > other.max[i] || max[i] < other.min[i]) {
                 return false;
             }
         }
@@ -107,11 +119,11 @@ public:
     // Intersection region, if any
     bool intersection(const AABB& other, AABB& result) const
     {
-        if(!intersects(other)) {
+        if (!intersects(other)) {
             return false;
         }
         vec_type newMin, newMax;
-        for(std::size_t i=0; i<N; ++i) {
+        for(std::size_t i = 0; i < N; ++i) {
             newMin[i] = (min[i] > other.min[i]) ? min[i] : other.min[i];
             newMax[i] = (max[i] < other.max[i]) ? max[i] : other.max[i];
         }
@@ -127,9 +139,9 @@ public:
     scalar_type volume() const
     {
         scalar_type vol = scalar_type(1);
-        for(std::size_t i=0; i<N; ++i) {
+        for(std::size_t i = 0; i < N; ++i) {
             scalar_type d = max[i] - min[i];
-            if(d < scalar_type(0)) {
+            if (d < scalar_type(0)) {
                 return scalar_type(0); // invalid or collapsed box
             }
             vol *= d;
@@ -143,10 +155,9 @@ public:
     // Merged bounding box of this and 'other'
     AABB merge(const AABB& other) const
     {
-
         vec_type mmin = min;
         vec_type mmax = max;
-        for(std::size_t i=0; i<N; ++i) {
+        for(std::size_t i = 0; i < N; ++i) {
             if(other.min[i] < mmin[i]) mmin[i] = other.min[i];
             if(other.max[i] > mmax[i]) mmax[i] = other.max[i];
         }
@@ -159,7 +170,7 @@ public:
     // Expand by a point
     void expand(const vec_type& pt)
     {
-        for(std::size_t i=0; i<N; ++i) {
+        for(std::size_t i = 0; i < N; ++i) {
             if(pt[i] < min[i]) min[i] = pt[i];
             if(pt[i] > max[i]) max[i] = pt[i];
         }
@@ -169,7 +180,7 @@ public:
     // Expand by another AABB
     void expand(const AABB& bb)
     {
-        for(std::size_t i=0; i<N; ++i) {
+        for(std::size_t i = 0; i < N; ++i) {
             if(bb.min[i] < min[i]) min[i] = bb.min[i];
             if(bb.max[i] > max[i]) max[i] = bb.max[i];
         }
@@ -177,11 +188,11 @@ public:
     }
 
     /************************************
-     *  Signed Distance (not strictly needed for intersection, but from original code)
+     *  Signed Distance (from original code)
      ************************************/
-    T sd(const vec_type& pt) const
+    scalar_type sd(const vec_type& pt) const
     {
-        vec_type cnt = (min + max) / 2;
+        vec_type cnt = (min + max) / scalar_type(2);
         return detail::sdBBox<vec_type>(pt - cnt, max - cnt);
     }
 
@@ -198,18 +209,18 @@ public:
      *
      *  Returns true if intersection occurs; tEnter/tExit define param range.
      ************************************/
-    bool intersectRay(const Ray<vec_type>& ray, T& tEnter, T& tExit) const
+    bool intersectRay(const Ray<vec_type>& ray, scalar_type& tEnter, scalar_type& tExit) const
     {
-        tEnter = -std::numeric_limits<T>::infinity();
-        tExit  =  std::numeric_limits<T>::infinity();
+        tEnter = -std::numeric_limits<scalar_type>::infinity();
+        tExit  =  std::numeric_limits<scalar_type>::infinity();
 
-        for (size_t i = 0; i < N; i++)
+        for (std::size_t i = 0; i < N; i++)
         {
-            T dir = ray.direction[i];
-            T start = ray.start[i];
+            scalar_type dir   = ray.direction[i];
+            scalar_type start = ray.start[i];
 
             // If direction is almost zero, check if we lie within the slab
-            if (std::fabs(dir) < std::numeric_limits<T>::epsilon())
+            if (std::fabs(dir) < std::numeric_limits<scalar_type>::epsilon())
             {
                 if (start < min[i] || start > max[i]) {
                     return false;
@@ -217,9 +228,9 @@ public:
             }
             else
             {
-                T invDir = T(1) / dir;
-                T t0 = (min[i] - start) * invDir;
-                T t1 = (max[i] - start) * invDir;
+                scalar_type invDir = scalar_type(1) / dir;
+                scalar_type t0 = (min[i] - start) * invDir;
+                scalar_type t1 = (max[i] - start) * invDir;
                 if (t0 > t1) std::swap(t0, t1);
 
                 if (t0 > tEnter) tEnter = t0;
@@ -229,27 +240,28 @@ public:
         }
         return true;
     }
+
     /**
-  * Clips the forward ray (t>=0) to the portion inside the AABB.
-  * Returns true if the clipped segment is nonempty, false otherwise.
-  *
-  * On success, segm will contain the portion of the ray inside the box.
-  */
+     * Clips the forward ray (t>=0) to the portion inside the AABB.
+     * Returns true if the clipped segment is nonempty, false otherwise.
+     *
+     * On success, segm will contain the portion of the ray inside the box.
+     */
     bool clip(const Ray<vec_type> &ray, Segm<vec_type> &segm) const
     {
-        T tEnter = -std::numeric_limits<T>::infinity();
-        T tExit  =  std::numeric_limits<T>::infinity();
+        scalar_type tEnter = -std::numeric_limits<scalar_type>::infinity();
+        scalar_type tExit  =  std::numeric_limits<scalar_type>::infinity();
 
         // For each dimension, clip the ray against [min[i], max[i]]
-        for (size_t i = 0; i < N; ++i)
+        for (std::size_t i = 0; i < N; ++i)
         {
-            T startCoord = ray.start[i];
-            T dir        = ray.direction[i];
-            T minCoord   = min[i];
-            T maxCoord   = max[i];
+            scalar_type startCoord = ray.start[i];
+            scalar_type dir        = ray.direction[i];
+            scalar_type minCoord   = min[i];
+            scalar_type maxCoord   = max[i];
 
             // If direction is ~0, we must be within the slab for that axis
-            if (std::fabs(dir) < std::numeric_limits<T>::epsilon())
+            if (std::fabs(dir) < std::numeric_limits<scalar_type>::epsilon())
             {
                 // Check if outside slab
                 if (startCoord < minCoord || startCoord > maxCoord)
@@ -258,9 +270,9 @@ public:
             else
             {
                 // Compute intersection parameters with the bounding planes
-                T invD = T(1) / dir;
-                T t0 = (minCoord - startCoord) * invD;
-                T t1 = (maxCoord - startCoord) * invD;
+                scalar_type invD = scalar_type(1) / dir;
+                scalar_type t0 = (minCoord - startCoord) * invD;
+                scalar_type t1 = (maxCoord - startCoord) * invD;
                 if (t0 > t1) std::swap(t0, t1);
 
                 // Shrink our [tEnter, tExit] interval
@@ -286,45 +298,42 @@ public:
         segm.end   = ray.start + ray.direction * tExit;
         return true;
     }
-    bool inside(const vec_type& pt) const {
-        for (size_t i = 0; i < N; ++i) {
-           if (!( (min[i]<=pt[i]) && (pt[i]<=max[i]) )){
-               return false;
-           }
+
+    bool inside(const vec_type& pt) const
+    {
+        for (std::size_t i = 0; i < N; ++i) {
+            if (!( (min[i] <= pt[i]) && (pt[i] <= max[i]) )) {
+                return false;
+            }
         }
         return true;
     }
-    bool insideStrict(const vec_type& pt) const {
 
-            for (size_t i = 0; i < N; ++i) {
-                if (!( (min[i]<pt[i]) && (pt[i]<max[i]) )){
-                    return false;
-                }
+    bool insideStrict(const vec_type& pt) const
+    {
+        for (std::size_t i = 0; i < N; ++i) {
+            if (!( (min[i] < pt[i]) && (pt[i] < max[i]) )) {
+                return false;
             }
-            return true;
-
+        }
+        return true;
     }
-
-
 };
-
-
 
 /*****************************************************************************************
  *  Partial Specialization for AABB< vec<T,2> >
  *****************************************************************************************/
 template <typename T>
-class AABB<T,2>
+class AABB< vec<T,2> >
 {
 public:
-    using vec_type    = vec<T,2>;
     using scalar_type = T;
-
+    using vec_type    = vec<T,2>;
 
     vec_type min, max, centroid;
 
 public:
-     AABB()
+    AABB()
     {
         min.x = std::numeric_limits<T>::max();
         min.y = std::numeric_limits<T>::max();
@@ -332,12 +341,14 @@ public:
         max.y = std::numeric_limits<T>::lowest();
         updateCentroid();
     }
-     AABB(const vec_type& vmin, const vec_type& vmax)
+
+    AABB(const vec_type& vmin, const vec_type& vmax)
         : min(vmin), max(vmax)
     {
         updateCentroid();
     }
-     AABB(const std::vector<vec_type>& pts)
+
+    AABB(const std::vector<vec_type>& pts)
     {
         if(pts.empty()) {
             min.x = std::numeric_limits<T>::max();
@@ -354,10 +365,7 @@ public:
         }
     }
 
-
-
-
-     bool intersects(const AABB& other) const
+    bool intersects(const AABB& other) const
     {
         // overlap if [minX <= other.maxX, maxX >= other.minX] etc
         if(min.x > other.max.x) return false;
@@ -366,7 +374,8 @@ public:
         if(max.y < other.min.y) return false;
         return true;
     }
-     bool intersection(const AABB& other, AABB& result) const
+
+    bool intersection(const AABB& other, AABB& result) const
     {
         if(!intersects(other)) {
             return false;
@@ -379,7 +388,7 @@ public:
         return true;
     }
 
-     scalar_type volume() const
+    scalar_type volume() const
     {
         // 2D "volume" => area
         T dx = max.x - min.x;
@@ -389,13 +398,15 @@ public:
         }
         return dx * dy;
     }
-     AABB merge(const AABB& other) const
+
+    AABB merge(const AABB& other) const
     {
         AABB ret(*this);
         ret.expand(other);
         return ret;
     }
-     void expand(const vec_type& pt)
+
+    void expand(const vec_type& pt)
     {
         if(pt.x < min.x) min.x = pt.x;
         if(pt.y < min.y) min.y = pt.y;
@@ -403,7 +414,8 @@ public:
         if(pt.y > max.y) max.y = pt.y;
         updateCentroid();
     }
-     void expand(const AABB& bb)
+
+    void expand(const AABB& bb)
     {
         if(bb.min.x < min.x) min.x = bb.min.x;
         if(bb.min.y < min.y) min.y = bb.min.y;
@@ -412,9 +424,7 @@ public:
         updateCentroid();
     }
 
-
-
-     void updateCentroid()
+    void updateCentroid()
     {
         centroid.x = (min.x + max.x)*T(0.5);
         centroid.y = (min.y + max.y)*T(0.5);
@@ -462,32 +472,34 @@ public:
 
         return true;
     }
-    bool inside(const vec_type& pt) const {
 
-         return (min.x<=pt.x)&&(pt.x<=max.x) &&( min.y<=pt.y) && (pt.y<=max.y);
-     }
-    bool insideStrict(const vec_type& pt) const {
-         return (min.x<pt.x)&&(pt.x<max.x) &&( min.y<pt.y) && (pt.y<max.y);
-     }
+    bool inside(const vec_type& pt) const
+    {
+        return (min.x <= pt.x) && (pt.x <= max.x) &&
+               (min.y <= pt.y) && (pt.y <= max.y);
+    }
+
+    bool insideStrict(const vec_type& pt) const
+    {
+        return (min.x < pt.x) && (pt.x < max.x) &&
+               (min.y < pt.y) && (pt.y < max.y);
+    }
 };
 
 /*****************************************************************************************
  *  Partial Specialization for AABB< vec<T,3> >
  *****************************************************************************************/
 template <typename T>
-class AABB< T,3 >
+class AABB< vec<T,3> >
 {
 public:
-    using vec_type    = vec<T,3>;
     using scalar_type = T;
-
-
+    using vec_type    = vec<T,3>;
 
     vec_type min, max, centroid;
 
-
 public:
-     AABB()
+    AABB()
     {
         min.x = std::numeric_limits<T>::max();
         min.y = std::numeric_limits<T>::max();
@@ -497,12 +509,14 @@ public:
         max.z = std::numeric_limits<T>::lowest();
         updateCentroid();
     }
-     AABB(const vec_type& vmin, const vec_type& vmax)
-        : min(vmin.x,vmin.y,vmin.z), max(vmax.x,vmax.y,vmax.z)
+
+    AABB(const vec_type& vmin, const vec_type& vmax)
+        : min(vmin.x, vmin.y, vmin.z), max(vmax.x, vmax.y, vmax.z)
     {
         updateCentroid();
     }
-     AABB(const std::vector<vec_type>& pts)
+
+    AABB(const std::vector<vec_type>& pts)
     {
         if(pts.empty()) {
             min.x = std::numeric_limits<T>::max();
@@ -523,13 +537,12 @@ public:
 
     AABB(const AABB& bb)
     {
-         min=bb.min;
-         max=bb.max;
-         updateCentroid();
+        min = bb.min;
+        max = bb.max;
+        updateCentroid();
+    }
 
-     }
-
-     bool intersects(const AABB& other) const
+    bool intersects(const AABB& other) const
     {
         if(min.x > other.max.x) return false;
         if(max.x < other.min.x) return false;
@@ -540,7 +553,7 @@ public:
         return true;
     }
 
-     bool intersection(const AABB& other, AABB& result) const
+    bool intersection(const AABB& other, AABB& result) const
     {
         if(!intersects(other)) {
             return false;
@@ -558,7 +571,7 @@ public:
         return true;
     }
 
-     scalar_type volume() const
+    scalar_type volume() const
     {
         T dx = max.x - min.x;
         T dy = max.y - min.y;
@@ -566,17 +579,17 @@ public:
         if(dx < T(0) || dy < T(0) || dz < T(0)) {
             return T(0);
         }
-        return dx*dy*dz;
+        return dx * dy * dz;
     }
 
     AABB merge(const AABB& other) const
     {
-        auto ret=AABB(min, max);
+        auto ret = AABB(min, max);
         ret.expand(other);
         return ret;
     }
 
-     void expand(const vec_type& pt)
+    void expand(const vec_type& pt)
     {
         if(pt.x < min.x) min.x = pt.x;
         if(pt.y < min.y) min.y = pt.y;
@@ -598,10 +611,7 @@ public:
         updateCentroid();
     }
 
-
-
-
-     void updateCentroid()
+    void updateCentroid()
     {
         centroid.x = (min.x + max.x)*T(0.5);
         centroid.y = (min.y + max.y)*T(0.5);
@@ -770,7 +780,8 @@ public:
 
         return true;
     }
-/**
+
+    /**
      * Clips the input segment 'inp' (s -> e) to the portion inside this AABB (3D).
      * Returns true if the clipped segment is non-empty.
      * 'segm' will hold the result on success.
@@ -876,30 +887,36 @@ public:
         segm.end   = s + dir * tExit;
         return true;
     }
-    bool inside(const vec_type& pt) const {
-         return (min.x<=pt.x)&&(pt.x<=max.x) &&( min.y<=pt.y) && (pt.y<=max.y)&&( min.z<=pt.z) && (pt.z<=max.z);
 
-     }
-    bool insideStrict(const vec_type& pt) const {
-         return (min.x<pt.x)&&(pt.x<max.x) &&( min.y<pt.y) && (pt.y<max.y)&&( min.z<pt.z) && (pt.z<max.z);
-     }
+    bool inside(const vec_type& pt) const
+    {
+        return (min.x <= pt.x) && (pt.x <= max.x) &&
+               (min.y <= pt.y) && (pt.y <= max.y) &&
+               (min.z <= pt.z) && (pt.z <= max.z);
+    }
+
+    bool insideStrict(const vec_type& pt) const
+    {
+        return (min.x < pt.x) && (pt.x < max.x) &&
+               (min.y < pt.y) && (pt.y < max.y) &&
+               (min.z < pt.z) && (pt.z < max.z);
+    }
 };
 
 /*****************************************************************************************
  *  Partial Specialization for AABB< vec<T,4> >
  *****************************************************************************************/
 template <typename T>
-class AABB< T,4 >
+class AABB< vec<T,4> >
 {
 public:
-    using vec_type    = vec<T,4>;
     using scalar_type = T;
-
+    using vec_type    = vec<T,4>;
 
     vec_type min, max, centroid;
 
 public:
-     AABB()
+    AABB()
     {
         min.x = std::numeric_limits<T>::max();
         min.y = std::numeric_limits<T>::max();
@@ -911,12 +928,14 @@ public:
         max.w = std::numeric_limits<T>::lowest();
         updateCentroid();
     }
-     AABB(const vec_type& vmin, const vec_type& vmax)
+
+    AABB(const vec_type& vmin, const vec_type& vmax)
         : min(vmin), max(vmax)
     {
         updateCentroid();
     }
-     AABB(const std::vector<vec_type>& pts)
+
+    AABB(const std::vector<vec_type>& pts)
     {
         if(pts.empty()) {
             min.x = std::numeric_limits<T>::max();
@@ -937,7 +956,7 @@ public:
         }
     }
 
-     bool intersects(const AABB& other) const
+    bool intersects(const AABB& other) const
     {
         if(min.x > other.max.x) return false;
         if(max.x < other.min.x) return false;
@@ -949,7 +968,8 @@ public:
         if(max.w < other.min.w) return false;
         return true;
     }
-     bool intersection(const AABB& other, AABB& result) const
+
+    bool intersection(const AABB& other, AABB& result) const
     {
         if(!intersects(other)) {
             return false;
@@ -970,7 +990,7 @@ public:
     }
 
     // "Volume" in 4D => hyper-volume
-     scalar_type volume() const
+    scalar_type volume() const
     {
         T dx = max.x - min.x;
         T dy = max.y - min.y;
@@ -982,30 +1002,34 @@ public:
         return dx*dy*dz*dw;
     }
 
-     AABB merge(const AABB& other) const
+    AABB merge(const AABB& other) const
     {
         AABB ret(*this);
         ret.expand(other);
         return ret;
     }
-     void expand(const vec_type& pt)
+
+    void expand(const vec_type& pt)
     {
         if(pt.x < min.x) min.x = pt.x;
         if(pt.y < min.y) min.y = pt.y;
         if(pt.z < min.z) min.z = pt.z;
         if(pt.w < min.w) min.w = pt.w;
+
         if(pt.x > max.x) max.x = pt.x;
         if(pt.y > max.y) max.y = pt.y;
         if(pt.z > max.z) max.z = pt.z;
         if(pt.w > max.w) max.w = pt.w;
         updateCentroid();
     }
-     void expand(const AABB& bb)
+
+    void expand(const AABB& bb)
     {
         if(bb.min.x < min.x) min.x = bb.min.x;
         if(bb.min.y < min.y) min.y = bb.min.y;
         if(bb.min.z < min.z) min.z = bb.min.z;
         if(bb.min.w < min.w) min.w = bb.min.w;
+
         if(bb.max.x > max.x) max.x = bb.max.x;
         if(bb.max.y > max.y) max.y = bb.max.y;
         if(bb.max.z > max.z) max.z = bb.max.z;
@@ -1013,10 +1037,7 @@ public:
         updateCentroid();
     }
 
-
-
-
-     void updateCentroid()
+    void updateCentroid()
     {
         centroid.x = (min.x + max.x)*T(0.5);
         centroid.y = (min.y + max.y)*T(0.5);
@@ -1030,7 +1051,7 @@ public:
         tEnter = -std::numeric_limits<T>::infinity();
         tExit  =  std::numeric_limits<T>::infinity();
 
-        // helper to do each dimension
+        // Helper to do each dimension
         auto checkAxis = [&](T rayStart, T rayDir, T minVal, T maxVal) -> bool
         {
             if (std::fabs(rayDir) < std::numeric_limits<T>::epsilon())
@@ -1059,21 +1080,20 @@ public:
 
         return true;
     }
-
 };
 
 /*****************************************************************************************
  *  Operator<< for AABB
  *****************************************************************************************/
-template <typename T,size_t N>
-inline std::ostream& operator<<(std::ostream& os, const AABB<T,N>& obj)
+template <typename Vec>
+inline std::ostream& operator<<(std::ostream& os, const AABB<Vec>& obj)
 {
     os << "[" << obj.min << ", " << obj.max << "]";
     return os;
 }
 
-// Example typedef
-using AABB3d = AABB<double,3>;
+// Example typedef (for a 3D box with double precision):
+using AABB3d = AABB< vec<double,3> >;
 
 } // end namespace bvh
 

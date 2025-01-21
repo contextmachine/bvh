@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 
 
 
-    std::vector<AABB<double, 3>>objects;
+    std::vector<AABB<vec<double, 3>>>objects;
 
 
     for (int i = 0; i < num_objects; ++i) {
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
       vec3 point2=point1-random_vec3(1.,10.);
       vec3 min_point=point1.min(point2);
       vec3 max_point=point1.max(point2);
-      objects.push_back(AABB<double, 3>(min_point, max_point));
+      objects.push_back(AABB(min_point, max_point));
 
     }
     if (print_all){
