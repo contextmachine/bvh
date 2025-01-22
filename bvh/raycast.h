@@ -196,8 +196,7 @@ namespace bvh {
         hits.reserve(rays.size() * 2);
         counts.resize(rays.size());
 
-        #pragma omp parallel for
-        for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(rays.size()); ++i) {
+        for (size_t i = 0; i < rays.size(); ++i) {
             std::vector<Hit> tmp;
             double tmin = 0;
             double tmax = 0;
@@ -210,11 +209,13 @@ namespace bvh {
 
             detail::raycast_internal(inp,ray.direction, bvh, 0, tmp, primitives);
             counts[i] = tmp.size();
+
             std::sort(tmp.begin(), tmp.end(),[](auto const& lhs, auto const& rhs) {
                 return lhs.first < rhs.first;
             });
+
             for (int j = 0; j <   counts[i]; ++j) {
-                hits.push_back(std::move(tmp[j]));
+                hits.push_back(tmp[j]);
             }
 
         }

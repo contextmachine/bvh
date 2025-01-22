@@ -1,4 +1,5 @@
 import json
+import time
 
 import numpy as np
 
@@ -25,10 +26,10 @@ def test_raycast_hits():
     result=mesh.raycast_hits(create_rays(start,direction))
     hits,counts=np.array(result[0]),np.array(result[1],dtype=np.uint)
     out_counts=read_array_from_path(outputs_counts, dtype=np.uint)
-    print(np.array(hits).tolist())
+
     assert np.all(np.isclose(counts,out_counts))
 
-    assert np.all(np.isclose(np.array(hits)[...,:-1], read_array_from_path( outputs_pts)))
+    assert np.all(np.isclose(np.array(hits), read_array_from_path( outputs_pts)))
 
 def test_raycast_counts():
 
@@ -50,5 +51,6 @@ def test_raycast_counts():
 
 
 if __name__ == '__main__':
+    time.sleep(1.9)
     test_raycast_hits()
     test_raycast_counts()
