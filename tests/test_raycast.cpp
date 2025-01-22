@@ -22,7 +22,7 @@ inline void generateRayGrid(const vec3 &origin,const vec3 &g_origin,std::vector<
 }
 
 
-inline void test_raycast1( const std::vector<Ray<vec3>> &grid, const BVH tree,const std::vector<Tri<vec3>> &tris, std::vector<vec3> &hits, std::vector<bool> &mask) {
+inline void test_raycast1( const std::vector<Ray<vec3>> &grid, const BVH &tree,const std::vector<Tri<vec3>> &tris, std::vector<vec3> &hits, std::vector<bool> &mask) {
 
   hits.resize(grid.size());
   mask.resize(grid.size());
@@ -46,7 +46,7 @@ inline void test_raycast1( const std::vector<Ray<vec3>> &grid, const BVH tree,co
 }
 
 
-inline void test_raycast2( const std::vector<Ray<vec3>> &grid, const BVH tree,const std::vector<Tri<vec3>> &tris, std::vector<Hit> &hits, std::vector<size_t> &counts) {
+inline void test_raycast2( const std::vector<Ray<vec3>> &grid, const BVH &tree,const std::vector<Tri<vec3>> &tris, std::vector<Hit> &hits, std::vector<size_t> &counts) {
 
   raycast(grid,tree,tris,hits,counts);
 
