@@ -82,11 +82,11 @@ jobs:
 
       - name: Debug artifact name
         run: |
-          echo "New artifact name: ${{  steps.artifactname.outputs.wheelfile_name }}"
+          echo "New artifact name: ${{  steps.artifactname.outputs.wheelfile }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4.3.1
         with:
           path: dist
-          name: ${{  steps.artifactname.outputs.wheelfile_name }}
+          name: ${{  steps.artifactname.outputs.wheelfile }}
           overwrite: true
