@@ -11,9 +11,17 @@
 #include "prims.h"
 #include <omp.h> // Include this for OpenMP
 namespace bvh {
+    struct Hit {
+
+        double first;
+        vec<double,3> second;
+        size_t prim;
+
+    };
     namespace detail {
+
         inline void raycast_internal(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
-                                     std::vector<std::pair<double,vec<double, 3>> > &hits, const std::vector<Tri<vec3d> > &primitives) {
+                                     std::vector<Hit> &hits, const std::vector<Tri<vec3d> > &primitives) {
             auto &node = bvh.nodes[node_idx];
             Segm<vec<double, 3> > out;
             bool result = node.bbox.clip(inp, out);
@@ -28,7 +36,7 @@ namespace bvh {
 
                     if (res > 0) {
 
-                        hits.push_back( std::make_pair(dir.dot(hit-inp.start),hit));
+                        hits.push_back( {dir.dot(hit-inp.start),hit,(size_t)node.object});
                     }
                 } else {
 
@@ -105,7 +113,7 @@ namespace bvh {
     inline void raycast(const Ray<vec<double, 3> > &ray,
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
-                        std::vector<std::pair<double,vec3d>> &hits) {
+                        std::vector<Hit> &hits) {
         double tmin = 0;
         double tmax = 0;
         bool res = bvh.nodes[0].bbox.intersectRay(ray, tmin, tmax);
@@ -165,7 +173,7 @@ namespace bvh {
      */
     inline void raycast(const Segm<vec<double, 3> > &segm,
                         const BVH &bvh,
-                        const std::vector<Tri<vec3d> > &primitives, std::vector<std::pair<double,vec3d>> &hits) {
+                        const std::vector<Tri<vec3d> > &primitives, std::vector<Hit> &hits) {
         detail::raycast_internal(segm,segm.end-segm.start, bvh, 0, hits, primitives);
     }
 
@@ -183,12 +191,13 @@ namespace bvh {
 
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
-                        std::vector<std::pair<double,vec3d>> &hits,
+                        std::vector<Hit> &hits,
                         std::vector<size_t> &counts) {
         hits.reserve(rays.size() * 2);
         counts.resize(rays.size());
-        std::vector<std::pair<double,vec<double, 3>>> tmp;
+
         for (size_t i = 0; i < rays.size(); ++i) {
+            std::vector<Hit> tmp;
             double tmin = 0;
             double tmax = 0;
             auto& ray=rays[i];
@@ -200,13 +209,50 @@ namespace bvh {
 
             detail::raycast_internal(inp,ray.direction, bvh, 0, tmp, primitives);
             counts[i] = tmp.size();
+
             std::sort(tmp.begin(), tmp.end(),[](auto const& lhs, auto const& rhs) {
                 return lhs.first < rhs.first;
             });
+
             for (int j = 0; j <   counts[i]; ++j) {
-                hits.push_back(std::move(tmp[j]));
+                hits.push_back(tmp[j]);
             }
-            tmp.clear();
+
+        }
+    }
+    inline void raycast_first(const std::vector<Ray<vec<double, 3> > > &rays,
+
+                        const BVH &bvh,
+                        const std::vector<Tri<vec3d> > &primitives,
+                        std::vector<Hit> &hits,
+                        std::vector<size_t> &counts) {
+        hits.resize(rays.size());
+        counts.resize(rays.size());
+
+#pragma omp parallel for
+        for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(rays.size()); ++i) {
+            std::vector<Hit> tmp;
+            double tmin = 0;
+            double tmax = 0;
+            auto& ray=rays[i];
+            bool res = bvh.nodes[0].bbox.intersectRay(ray, tmin, tmax);
+
+            if (res == 0) { continue; };
+
+            Segm<vec<double, 3> > inp = {ray.start, ray.start + ray.direction * tmax};
+
+            detail::raycast_internal(inp,ray.direction, bvh, 0, tmp, primitives);
+            counts[i] = tmp.size();
+            if (counts[i]==0) {
+                continue;
+            }
+            std::sort(tmp.begin(), tmp.end(),[](auto const& lhs, auto const& rhs) {
+                return lhs.first < rhs.first;
+            });
+            hits[i]=tmp[0];
+            
+
+
         }
     }
 

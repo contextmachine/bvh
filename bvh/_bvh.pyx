@@ -53,12 +53,18 @@ cdef extern from "bvh.h" namespace "bvh" nogil:
 
 
 cdef extern from "raycast.h" namespace "bvh" nogil:
+    cdef cppclass Hit:
+        double first
+        vec3d second
+        size_t prim
     void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[size_t] &counts)
-    void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[pair[double,vec3d]] &hits, vector[size_t] &counts)
+    void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[Hit] &hits, vector[size_t] &counts)
     void raycast_single_omp(const vector[Ray[vec3d]] &rays,const BVH &bvh,vector[Tri[vec3d]] &primitives,vector[bool] &mask)
 
-
-                            
+cdef extern from "reflection.h" namespace "bvh" nogil:
+    void reflect(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[Ray[vec3d]]&reflected, vector[bool] &mask)
+                             
+    
 cdef class TriangleSoup:
     cdef vector[Tri[vec3d]] primitives
     cdef BVH bvh
@@ -174,6 +180,38 @@ cdef class TriangleSoup:
           mask[i]=mask_cpp[i]
         return mask
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def reflection(self, double[:,:,:] rays, double[:,:,:] result=None, bool[:] mask=None):
+        cdef size_t i;
+        cdef size_t n = rays.shape[0]
+        cdef vector[Ray[vec3d]] rays_cpp=vector[Ray[vec3d]](n)
+        cdef vector[Ray[vec3d]] reflected_cpp=vector[Ray[vec3d]]()
+        cdef vector[bool] mask_cpp=vector[bool]()
+        for i in range(n):
+            rays_cpp[i].start.x=rays[i,0,0]
+            rays_cpp[i].start.y=rays[i,0,1]
+            rays_cpp[i].start.z=rays[i,0,2]
+            rays_cpp[i].direction.x=rays[i,1,0]
+            rays_cpp[i].direction.y=rays[i,1,1]
+            rays_cpp[i].direction.z=rays[i,1,2]
+        if mask is None:
+            mask=np.empty((n,),dtype=np.bool_)
+        if result is None:
+            result=np.empty(rays.shape)
+        reflect(rays_cpp,self.bvh,self.primitives,reflected_cpp,mask_cpp)
+        for i in range(n):
+            result[i,0,0]=reflected_cpp[i].start.x
+            result[i,0,1]=reflected_cpp[i].start.y
+            result[i,0,2]=reflected_cpp[i].start.z
+            result[i,1,0]=reflected_cpp[i].direction.x
+            result[i,1,1]=reflected_cpp[i].direction.y
+            result[i,1,2]=reflected_cpp[i].direction.z
+            mask[i]=mask_cpp[i]
+
+        return result, mask
+
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
@@ -210,7 +248,7 @@ cdef class TriangleSoup:
         cdef size_t n = rays.shape[0]
         cdef size_t[:] counts=np.empty((n,),dtype=np.uint)
         cdef vector[Ray[vec3d]] rays_cpp=vector[Ray[vec3d]](n)
-        cdef vector[pair[double,vec3d]] hits_cpp=vector[pair[double,vec3d]]()
+        cdef vector[Hit] hits_cpp=vector[Hit]()
         cdef vector[size_t] counts_cpp=vector[size_t]()
         if self.bvh.empty():
             raise ValueError("BVH is empty. Build it first.")
@@ -225,7 +263,7 @@ cdef class TriangleSoup:
 
         raycast(rays_cpp,self.bvh,self.primitives,hits_cpp,counts_cpp)
         cdef double[:,:] hits=np.empty((hits_cpp.size(),4))
-
+        cdef size_t[:] prims=np.empty((hits_cpp.size(),),dtype=np.uint)
         for i in range(n):
             counts[i]=counts_cpp[i]
 
@@ -234,7 +272,8 @@ cdef class TriangleSoup:
             hits[i,1]=hits_cpp[i].second.y
             hits[i,2]=hits_cpp[i].second.z
             hits[i,3]=hits_cpp[i].first
-        return hits,counts
+            prims[i]=hits_cpp[i].prim
+        return hits,counts,prims
 
 
     @cython.boundscheck(False)

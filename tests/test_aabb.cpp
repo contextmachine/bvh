@@ -33,20 +33,20 @@ inline bool almost_equal(double a, double b, double eps = 1e-12)
 static void testAABB()
 {
     // Test default constructor
-    AABB<double, 3> aabb1;
+    AABB<vec<double, 3>> aabb1;
     assert(almost_equal(aabb1.min.x, std::numeric_limits<double>::max()));
     assert(almost_equal(aabb1.max.x, std::numeric_limits<double>::lowest()));
 
     // Test constructor with min and max
     vec<double, 3> minVec(0.0, 0.0, 0.0);
     vec<double, 3> maxVec(1.0, 1.0, 1.0);
-    AABB<double, 3> aabb2(minVec, maxVec);
+    AABB aabb2(minVec, maxVec);
     assert(almost_equal(aabb2.min.x, 0.0));
     assert(almost_equal(aabb2.max.x, 1.0));
 
     // Test intersection
-    AABB<double, 3> aabb3(vec<double, 3>(0.5, 0.5, 0.5), vec<double, 3>(1.5, 1.5, 1.5));
-    AABB<double, 3> result;
+    AABB aabb3(vec<double, 3>(0.5, 0.5, 0.5), vec<double, 3>(1.5, 1.5, 1.5));
+    AABB<vec<double,3>> result;
     assert(aabb2.intersection(aabb3, result));
     assert(almost_equal(result.min.x, 0.5));
     assert(almost_equal(result.max.x, 1.0));
