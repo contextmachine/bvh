@@ -18,6 +18,7 @@
 #else
 // Everywhere else (Linux, macOS, MinGW, etc.), use size_t
 #  define OMP_INDEX_TYPE size_t
+#endif
 namespace bvh {
     namespace detail {
         inline void tri_normal(const Tri<vec3d> &tri, vec3d& normal
