@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <algorithm>
 #include "prims.h"
-
+#include "typecodes.h"
 namespace bvh {
     namespace detail {
         /**
@@ -29,9 +29,9 @@ namespace bvh {
      *  Primary Template AABB< Vec >
      *
      *  This handles the general N-dimensional case, where:
-     *    - Vec is typically something like vec<T,N>, with:
+     *    - Vec is typically something like vec<T,dim>, with:
      *         using value_type = T;
-     *         static constexpr std::size_t size = N;
+     *         static constexpr std::size_t size = dim;
      *
      *  The partial specializations below handle explicit cases Vec=vec<T,2>, vec<T,3>, vec<T,4>.
      *****************************************************************************************/
@@ -43,16 +43,18 @@ namespace bvh {
      * Used for various geometric computations, intersection tests, and bounding operations.
      *
      * Template parameter:
-     * - Vec: A vector type (e.g. vec<T,N>) that has:
+     * - Vec: A vector type (e.g. vec<T,dim>) that has:
      *        - using value_type  = T;
-     *        - static constexpr std::size_t size = N;
+     *        - static constexpr std::size_t size = dim;
      *        - operator[](std::size_t i)
      *        - .abs(), .max_val(), .max(T) etc., depending on your vector implementation
      */
     class AABB {
     public:
         using scalar_type = typename Vec::value_type; ///< Underlying scalar (e.g. float/double)
-        static constexpr std::size_t N = Vec::size; ///< Dimensionality (e.g. 2,3,4,...)
+        using value_type = typename Vec::value_type; ///< Underlying scalar (e.g. float/double)
+        static constexpr std::size_t dim = Vec::dimension; ///< Dimensionality (e.g. 2,3,4,...)
+        static constexpr std::size_t typecode = TYPE_AABB;
         using vec_type = Vec;
 
         vec_type min;
@@ -66,7 +68,7 @@ namespace bvh {
          ************************************/
         AABB() {
             // Initialize "empty" box so any real expansions fix them
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 min[i] = std::numeric_limits<scalar_type>::max();
                 max[i] = std::numeric_limits<scalar_type>::lowest();
             }
@@ -83,7 +85,7 @@ namespace bvh {
         AABB(const std::vector<vec_type> &pts) {
             if (pts.empty()) {
                 // define an "empty" box
-                for (std::size_t i = 0; i < N; ++i) {
+                for (std::size_t i = 0; i < dim; ++i) {
                     min[i] = std::numeric_limits<scalar_type>::max();
                     max[i] = std::numeric_limits<scalar_type>::lowest();
                 }
@@ -102,7 +104,7 @@ namespace bvh {
          ************************************/
         // Overlaps if each dimension's intervals overlap
         bool intersects(const AABB &other) const {
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 if (min[i] > other.max[i] || max[i] < other.min[i]) {
                     return false;
                 }
@@ -116,7 +118,7 @@ namespace bvh {
                 return false;
             }
             vec_type newMin, newMax;
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 newMin[i] = (min[i] > other.min[i]) ? min[i] : other.min[i];
                 newMax[i] = (max[i] < other.max[i]) ? max[i] : other.max[i];
             }
@@ -127,11 +129,11 @@ namespace bvh {
         /************************************
          *  Volume
          ************************************/
-        // volume = product of (max[i] - min[i]) for i in [0..N)
+        // volume = product of (max[i] - min[i]) for i in [0..dim)
         // If any dimension is negative (min>max), the volume is 0.
         scalar_type volume() const {
             scalar_type vol = scalar_type(1);
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 scalar_type d = max[i] - min[i];
                 if (d < scalar_type(0)) {
                     return scalar_type(0); // invalid or collapsed box
@@ -148,7 +150,7 @@ namespace bvh {
         AABB merge(const AABB &other) const {
             vec_type mmin = min;
             vec_type mmax = max;
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 if (other.min[i] < mmin[i]) mmin[i] = other.min[i];
                 if (other.max[i] > mmax[i]) mmax[i] = other.max[i];
             }
@@ -160,7 +162,7 @@ namespace bvh {
          ************************************/
         // Expand by a point
         void expand(const vec_type &pt) {
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 if (pt[i] < min[i]) min[i] = pt[i];
                 if (pt[i] > max[i]) max[i] = pt[i];
             }
@@ -169,7 +171,7 @@ namespace bvh {
 
         // Expand by another AABB
         void expand(const AABB &bb) {
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 if (bb.min[i] < min[i]) min[i] = bb.min[i];
                 if (bb.max[i] > max[i]) max[i] = bb.max[i];
             }
@@ -192,7 +194,7 @@ namespace bvh {
         }
 
         /************************************
-         *  Ray vs. AABB Intersection (Generic N-D Slab Test)
+         *  Ray vs. AABB Intersection (Generic dim-D Slab Test)
          *
          *  Returns true if intersection occurs; tEnter/tExit define param range.
          ************************************/
@@ -200,7 +202,7 @@ namespace bvh {
             tEnter = -std::numeric_limits<scalar_type>::infinity();
             tExit = std::numeric_limits<scalar_type>::infinity();
 
-            for (std::size_t i = 0; i < N; i++) {
+            for (std::size_t i = 0; i < dim; i++) {
                 scalar_type dir = ray.direction[i];
                 scalar_type start = ray.start[i];
 
@@ -234,7 +236,7 @@ namespace bvh {
             scalar_type tExit = std::numeric_limits<scalar_type>::infinity();
 
             // For each dimension, clip the ray against [min[i], max[i]]
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 scalar_type startCoord = ray.start[i];
                 scalar_type dir = ray.direction[i];
                 scalar_type minCoord = min[i];
@@ -277,7 +279,7 @@ namespace bvh {
         }
 
         bool inside(const vec_type &pt) const {
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 if (!((min[i] <= pt[i]) && (pt[i] <= max[i]))) {
                     return false;
                 }
@@ -286,7 +288,7 @@ namespace bvh {
         }
 
         bool insideStrict(const vec_type &pt) const {
-            for (std::size_t i = 0; i < N; ++i) {
+            for (std::size_t i = 0; i < dim; ++i) {
                 if (!((min[i] < pt[i]) && (pt[i] < max[i]))) {
                     return false;
                 }
@@ -303,9 +305,10 @@ namespace bvh {
     public:
         using scalar_type = T;
         using vec_type = vec<T, 2>;
-
+        using value_type = T; ///< Underlying scalar (e.g. float/double)
+        static constexpr std::size_t typecode = TYPE_AABB;
         vec_type min, max, centroid;
-
+        static constexpr std::size_t dim = 2;
     public:
         AABB() {
             min.x = std::numeric_limits<T>::max();
@@ -449,7 +452,9 @@ namespace bvh {
     public:
         using scalar_type = T;
         using vec_type = vec<T, 3>;
-
+        using value_type = T; ///< Underlying scalar (e.g. float/double)
+        static constexpr std::size_t dim = 3;
+        static constexpr std::size_t typecode = TYPE_AABB;
         vec_type min, max, centroid;
 
     public:
@@ -822,7 +827,9 @@ namespace bvh {
     public:
         using scalar_type = T;
         using vec_type = vec<T, 4>;
-
+        using value_type = T; ///< Underlying scalar (e.g. float/double)
+        static constexpr std::size_t typecode = TYPE_AABB;
+        static constexpr std::size_t dim = 4;
         vec_type min, max, centroid;
 
     public:

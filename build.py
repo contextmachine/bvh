@@ -91,9 +91,9 @@ if sys.platform == "darwin" and platform.machine()=="arm64":
 elif sys.platform == "win32":
 
     compile_args[1] = "/std:c++20"
-    compile_args[0] = "/O2"
+    compile_args[0] = "/Ox"
 
-
+    compile_args+=['/openmp','/fp:fast','/nologo' '/EHsc', '/MD' ,'/favor:Intel64' ]
     link_args+=['/openmp']
 
     link_args += compile_args
@@ -138,6 +138,13 @@ compile_args: {compile_args}
 
 extensions = [
 Extension("bvh._bvh",   ["bvh/_bvh.pyx"],
+          extra_compile_args=compile_args,
+
+        extra_link_args=link_args,
+          define_macros=define_macros,
+          include_dirs=include_dirs,
+          language="c++"),
+          Extension("bvh.serialization",   ["bvh/serialization.pyx"],
           extra_compile_args=compile_args,
 
         extra_link_args=link_args,

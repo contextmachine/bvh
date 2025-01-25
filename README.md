@@ -29,7 +29,7 @@ For other platforms, you'll need to build from source, which requires:
 ## Usage
 
 ### Basic Example
-
+$f_{sch}=2000\sqrt{\frac{T}{V}}$
 ```python
 import numpy as np
 from bvh import TriangleSoup

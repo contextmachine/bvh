@@ -6,10 +6,11 @@
 // -I$PWD Или из папки ./test clang++ -std=c++17 -o bvh_test bvh_test.cpp
 // -march=armv8-a+simd -O3 -I$PWD/..
 #include <cassert>
-
+#include "bvh/serialization.h"
 #include "bvh/vec.h"
 #include "bvh/bvh.h"
 #include "bvh/aabb.h"
+
 #include <chrono>
 #include <cstring>
 #include <iostream>

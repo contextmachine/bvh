@@ -4,12 +4,16 @@
 
 #ifndef RAYCAST_H
 #define RAYCAST_H
-
+#include <vector>
 #include "moller.h"
 #include "aabb.h"
 #include "bvh.h"
 #include "prims.h"
 #include <omp.h> // Include this for OpenMP
+#include <unordered_map>
+#include <utility>
+#include <cstddef>
+#include <functional>
 namespace bvh {
     struct Hit {
 
@@ -18,7 +22,76 @@ namespace bvh {
         size_t prim;
 
     };
+    struct PrimHit {
+        double t;
+        size_t ray;
+        vec<double,3> pt; //first intersection point
+
+    };
+    using hit3d=vec<double,4>;
+    struct pair_ulong_hash {
+        size_t operator()( const std::pair<size_t,size_t>& p) const {
+            auto h1 = std::hash<size_t>()(p.first);
+            auto h2 = std::hash<size_t>()(p.second);
+            h1 ^= (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
+            return h1;
+        }
+    };
+
+    struct pair_hash {
+        template <class T1, class T2>
+        std::size_t operator()(const std::pair<T1, T2>& p) const {
+            // Combine the individual hashes of the two values
+            // in a way that reduces collisions.
+            // A common approach is from boost::hash_combine.
+            auto h1 = std::hash<T1>()(p.first);
+            auto h2 = std::hash<T2>()(p.second);
+
+            // Example combination (a 64-bit variant of boost::hash_combine):
+            // 0x9e3779b97f4a7c15ULL is a 64-bit "magic" constant
+            h1 ^= (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
+            return h1;
+        }
+    };
+
     namespace detail {
+
+        // Then use it in your map:
+
+        inline void raycast_bvh_internal(const size_t ray_id, const Segm<vec<double, 3> > &inp,  const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
+                                     std::unordered_map<std::pair<size_t,size_t>,hit3d,pair_ulong_hash> &prims_rays_hits) {
+            auto &node = bvh.nodes[node_idx];
+            Segm<vec<double, 3> > out;
+            bool result = node.bbox.clip(inp, out);
+
+            if (result) {
+                if (node.isLeaf()) {
+
+                    if (out.start==inp.start) {
+                        prims_rays_hits[{node.object,ray_id}]={out.end.x,out.end.y,out.end.z,dir.dot(out.end-inp.start)};
+
+                    } else if (out.end==inp.end) {
+                        prims_rays_hits[{node.object,ray_id}]={out.start.x,out.start.y,out.start.z,dir.dot(out.start-inp.start)};
+
+
+
+                    } else {
+                        prims_rays_hits[{node.object,ray_id}]={out.end.x,out.end.y,out.end.z,dir.dot(out.end-inp.start)};
+                       ;
+                        //hits.push_back( {dir.dot(out.end-inp.start),out.end,(size_t)node.object});
+
+                    }
+
+
+
+                } else {
+
+                    raycast_bvh_internal(ray_id,inp,dir, bvh,  bvh.nodes[node_idx].left, prims_rays_hits);
+                    raycast_bvh_internal(ray_id,inp, dir,bvh,  bvh.nodes[node_idx].right, prims_rays_hits);
+                }
+            }
+        }
+
 
         inline void raycast_internal(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
                                      std::vector<Hit> &hits, const std::vector<Tri<vec3d> > &primitives) {
@@ -126,12 +199,6 @@ namespace bvh {
         std::sort(hits.begin(), hits.end(),[](auto const& lhs, auto const& rhs) {
             return lhs.first < rhs.first;
         });
-
-
-
-
-
-
 
     }
 
@@ -302,14 +369,39 @@ namespace bvh {
 
         }
     }
-#include <vector>
-#include <omp.h> // Include this for OpenMP
-#include "vec.h"
-#include "moller.h"
-#include "aabb.h"
-#include "bvh.h"
-#include "prims.h"
 
+
+
+    inline void raycast_bvh(const std::vector<Ray<vec<double, 3>>> &rays,
+
+                            const BVH &bvh,
+                            std::unordered_map<std::pair<size_t, size_t>, hit3d,pair_ulong_hash> &prims_rays_hits
+
+
+    ) {
+
+
+        for (size_t i = 0; i < rays.size(); ++i) {
+
+
+            double tmin = 0;
+            double tmax = 0;
+            auto& ray=rays[i];
+            bool res = bvh.nodes[0].bbox.intersectRay(ray, tmin, tmax);
+
+            if (res == 0) { continue; };
+
+            Segm<vec<double, 3> > inp = {ray.start, ray.start + ray.direction * tmax};
+
+            detail::raycast_bvh_internal(i, inp,ray.direction, bvh, 0, prims_rays_hits);
+
+
+
+
+
+
+        }
+    }
 
     /**
      * @brief Parallel raycast multiple rays against the BVH and collect intersections.

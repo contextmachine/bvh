@@ -7,7 +7,9 @@
 #include "bvh/raycast.h"
 #include "bvh/reflection.h"
 #include "bvh/interval.h"
+#include "bvh/acoustics.h"
 using namespace bvh;
+#define DEBUG 1
 int main() {
 
 }

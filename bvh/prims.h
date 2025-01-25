@@ -4,7 +4,7 @@
 
 #ifndef PRIMS_H
 #define PRIMS_H
-
+#include "typecodes.h"
 
 namespace bvh {
     template<typename Vec>
@@ -22,6 +22,10 @@ namespace bvh {
      * The direction of the ray, represented as a vector (unit or not unit).
      */
     struct Ray {
+        using vec_type = Vec;
+        using value_type = typename vec_type::value_type;
+        static constexpr size_t dim=vec_type::dim;
+        static constexpr size_t typecode=TYPE_RAY;
         Vec start;
         Vec direction;
     };
@@ -41,6 +45,10 @@ namespace bvh {
      * The ending point of the segment, represented as a vector.
      */
     struct Segm {
+        using vec_type = Vec;
+        using value_type = typename vec_type::value_type;
+        static constexpr size_t dim=vec_type::dim;
+        static constexpr size_t typecode=TYPE_SEGM;
         Vec start;
         Vec end;
     };
@@ -63,6 +71,10 @@ namespace bvh {
      * The third vertex of the triangle, represented as a vector.
      */
     struct Tri {
+        using vec_type = Vec;
+        using value_type = typename vec_type::value_type;
+        static constexpr size_t dim=vec_type::dim;
+        static constexpr size_t typecode=TYPE_TRI;
         Vec a;
         Vec b;
         Vec c;

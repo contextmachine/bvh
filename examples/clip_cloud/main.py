@@ -69,7 +69,7 @@ def clip_e57(mesh: TriangleSoup, source: pye57.E57 | str, target: pye57.E57 | st
         return True
 
 if __name__ == '__main__':
-    with open('clipmesh.txt') as f:
+    with open('clipmesh.json') as f:
         tris=np.array(eval(f.read()))
     from bvh import TriangleSoup
     mesh=TriangleSoup(tris)

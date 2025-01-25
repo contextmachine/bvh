@@ -9,6 +9,8 @@ from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libc.math cimport modf
 from libcpp cimport bool
+from libcpp.unordered_map cimport unordered_map
+from cython.operator import dereference, postincrement
 cimport numpy as cnp
 import numpy as np
 cnp.import_array()
@@ -50,21 +52,184 @@ cdef extern from "bvh.h" namespace "bvh" nogil:
         bint empty() const
         AABB3d bbox() const
         void build(const vector[Tri[vec3d]] &primitives)
+        void build(const vector[AABB[vec3d]] &primitives)
 
 
 cdef extern from "raycast.h" namespace "bvh" nogil:
+    cdef cppclass hit3d:
+        double x
+        double y
+        double z
+        double w
+
     cdef cppclass Hit:
         double first
         vec3d second
         size_t prim
+    cdef cppclass PrimHit:
+        double t
+        size_t ray
+        vec3d pt
+    cdef cppclass pair_ulong_hash:
+        size_t operator()(const pair[size_t,size_t]& p) const 
+
     void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[size_t] &counts)
     void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[Hit] &hits, vector[size_t] &counts)
     void raycast_single_omp(const vector[Ray[vec3d]] &rays,const BVH &bvh,vector[Tri[vec3d]] &primitives,vector[bool] &mask)
+    void raycast_bvh(const vector[Ray[vec3d]] &rays,const BVH &bvh,  unordered_map[pair[size_t,size_t],hit3d, pair_ulong_hash] &prims_rays_hits )
+
+    
 
 cdef extern from "reflection.h" namespace "bvh" nogil:
     void reflect(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[Ray[vec3d]]&reflected, vector[bool] &mask)
-                             
+
+
+
+cdef class BVHTree:
     
+    cdef vector[AABB[vec3d]] primitives
+    cdef BVH bvh
+
+    def __init__(self, double[:,:,:] boxes):
+        
+
+        cdef size_t i;
+        cdef size_t n = boxes.shape[0]
+     
+        self.primitives=vector[AABB[vec3d]](n)
+        self.bvh=BVH()
+
+        for i in range(n):
+            self.primitives[i].min.x=boxes[i,0,0]
+            self.primitives[i].min.y=boxes[i,0,1]
+            self.primitives[i].min.z=boxes[i,0,2]
+            self.primitives[i].max.x=boxes[i,1,0]
+            self.primitives[i].max.y=boxes[i,1,1]
+            self.primitives[i].max.z=boxes[i,1,2]
+
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    @cython.initializedcheck(False)
+    @cython.nonecheck(True)
+    def bbox(self):
+        cdef AABB3d bb
+        cdef double[:,:] bb_arr
+        if self.bvh.empty():
+            raise ValueError("BVH is empty. Build it first.")
+        bb = self.bvh.bbox()
+        bb_arr=np.empty((2,3))
+
+        bb_arr[0,0]=bb.min.x
+        bb_arr[0,1]=bb.min.y
+        bb_arr[0,2]=bb.min.z
+        bb_arr[1,0]=bb.max.x
+        bb_arr[1,1]=bb.max.y
+        bb_arr[1,2]=bb.max.z
+        return bb_arr
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    @cython.initializedcheck(False)
+    @cython.nonecheck(True)
+    def in_root_bbox(self, double[:,:] points, bool[:] result=None):
+        cdef AABB3d bb
+        cdef vec3d pt
+        cdef size_t i;
+        cdef size_t n = points.shape[0]
+        if self.bvh.empty():
+            raise ValueError("BVH is empty. Build it first.")
+        bb = self.bvh.bbox()
+        if result is None:
+            result=np.empty((n,),dtype=np.bool_)
+        for i in range(n):
+
+            pt.x=points[i,0]
+            pt.y=points[i,1]
+            pt.z=points[i,2]
+            if not bb.inside(pt):
+                result[i]=False
+            else:
+                result[i]=True
+        return result
+
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    @cython.initializedcheck(False)
+    @cython.nonecheck(True)
+    def has_bvh(self):
+        cdef bint res= self.bvh.empty()
+        return not res
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def build_bvh(self):
+        if  self.bvh.empty():
+            self.bvh.build(self.primitives)
+        else:
+            raise ValueError("BVH already built")
+
+
+   
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def raycast(self, double[:,:,:] rays) :
+        cdef size_t i,row, col;
+        cdef size_t cols=4
+        
+        cdef size_t n = rays.shape[0]
+        cdef dict py_prims_rays_hits=dict()
+        cdef tuple pykey;
+   
+        cdef vector[Ray[vec3d]] rays_cpp=vector[Ray[vec3d]](n)
+        cdef unordered_map[pair[size_t,size_t],hit3d, pair_ulong_hash]  prims_rays_hits_cpp=unordered_map[pair[size_t,size_t],hit3d, pair_ulong_hash] ()
+
+        
+        
+        if self.bvh.empty():
+            raise ValueError("BVH is empty. Build it first.")
+
+        for i in range(n):
+            rays_cpp[i].start.x=rays[i,0,0]
+            rays_cpp[i].start.y=rays[i,0,1]
+            rays_cpp[i].start.z=rays[i,0,2]
+            rays_cpp[i].direction.x=rays[i,1,0]
+            rays_cpp[i].direction.y=rays[i,1,1]
+            rays_cpp[i].direction.z=rays[i,1,2]
+
+        raycast_bvh(rays_cpp,self.bvh,prims_rays_hits_cpp)
+
+        
+        cdef unordered_map[ pair[size_t,size_t],hit3d, pair_ulong_hash].iterator it = prims_rays_hits_cpp.begin()
+        cdef size_t x=0;
+        cdef double[:, :] bhit3d=np.empty((prims_rays_hits_cpp.size(),4))
+
+        while(it != prims_rays_hits_cpp.end()):
+            # let's pretend here I just want to print the key and the value
+            pykey=(dereference(it).first.first,      dereference(it).first.second)
+            py_prims_rays_hits[pykey]=x
+            bhit3d[x,0]=dereference(it).second.x
+            bhit3d[x,1]=dereference(it).second.y
+            bhit3d[x,2]=dereference(it).second.z
+            bhit3d[x,3]=dereference(it).second.w
+            
+            postincrement(it) # Increment the iterator to the net element
+            
+            x+=1
+
+
+        return py_prims_rays_hits, bhit3d
+
+
+
+        
+
 cdef class TriangleSoup:
     cdef vector[Tri[vec3d]] primitives
     cdef BVH bvh
