@@ -11,6 +11,13 @@
 #include "raycast.h"
 #include "prims.h"
 #include <vector>
+
+#if defined(_WIN32) && defined(_MSC_VER)
+// On Windows with MSVC, use int for OpenMP loop counters
+#  define OMP_INDEX_TYPE int
+#else
+// Everywhere else (Linux, macOS, MinGW, etc.), use size_t
+#  define OMP_INDEX_TYPE size_t
 namespace bvh {
     namespace detail {
         inline void tri_normal(const Tri<vec3d> &tri, vec3d& normal
@@ -32,25 +39,25 @@ namespace bvh {
             out.resize(in.size());
             if (in.empty()) return;
 
-            const size_t n = in.size();
+            const OMP_INDEX_TYPE n = in.size();
 
             // Choose a block size (tune for your system/cache)
-            const size_t blockSize = 1024;
+            const OMP_INDEX_TYPE blockSize = 1024;
 
             // Number of blocks
-            size_t numBlocks = (n + blockSize - 1) / blockSize;
+            OMP_INDEX_TYPE numBlocks = (n + blockSize - 1) / blockSize;
 
             // This will hold the sum of each block
-            std::vector<size_t> blockSums(numBlocks);
+            std::vector<OMP_INDEX_TYPE> blockSums(numBlocks);
 
             // 1) Compute partial sums within each block in parallel
 #pragma omp parallel for
-            for (size_t b = 0; b < numBlocks; ++b) {
-                size_t start = b * blockSize;
-                size_t end   = std::min(start + blockSize, n);
+            for (OMP_INDEX_TYPE b = 0; b < numBlocks; ++b) {
+                OMP_INDEX_TYPE start = b * blockSize;
+                OMP_INDEX_TYPE end   = std::min(start + blockSize, n);
 
-                size_t sum = 0;
-                for (size_t i = start; i < end; ++i) {
+                OMP_INDEX_TYPE sum = 0;
+                for (OMP_INDEX_TYPE i = start; i < end; ++i) {
                     sum += in[i];
                     out[i] = sum;
                 }
@@ -58,18 +65,18 @@ namespace bvh {
             }
 
             // 2) Compute the prefix sums of the block sums (sequentially or in parallel with a smaller scan)
-            for (size_t b = 1; b < numBlocks; ++b) {
+            for (OMP_INDEX_TYPE b = 1; b < numBlocks; ++b) {
                 blockSums[b] += blockSums[b - 1];
             }
 
             // 3) Add the block offset to each element in block b (for b > 0) in parallel
 #pragma omp parallel for
-            for (size_t b = 1; b < numBlocks; ++b) {
-                size_t offset = blockSums[b - 1];
-                size_t start  = b * blockSize;
-                size_t end    = std::min(start + blockSize, n);
+            for (OMP_INDEX_TYPE b = 1; b < numBlocks; ++b) {
+                OMP_INDEX_TYPE offset = blockSums[b - 1];
+                OMP_INDEX_TYPE start  = b * blockSize;
+                OMP_INDEX_TYPE end    = std::min(start + blockSize, n);
 
-                for (size_t i = start; i < end; ++i) {
+                for (OMP_INDEX_TYPE i = start; i < end; ++i) {
                     out[i] += offset;
                 }
             }

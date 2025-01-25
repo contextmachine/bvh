@@ -14,6 +14,8 @@
 #include <utility>
 #include <cstddef>
 #include <functional>
+
+#endif
 namespace bvh {
     struct Hit {
 

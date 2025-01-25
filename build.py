@@ -93,7 +93,7 @@ elif sys.platform == "win32":
     compile_args[1] = "/std:c++20"
     compile_args[0] = "/Ox"
 
-    compile_args+=['/openmp','/fp:fast','/nologo' '/EHsc', '/MD' ,'/favor:Intel64' ]
+    compile_args+=['/openmp','/fp:fast','/nologo', '/EHsc', '/MD' ,'/favor:Intel64' ]
     link_args+=['/openmp']
 
     link_args += compile_args
