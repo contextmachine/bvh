@@ -1,5 +1,4 @@
 import dataclasses
-import subprocess
 from dataclasses import field
 import platform
 import sys
@@ -71,33 +70,19 @@ define_macros = []
 if sys.platform == "darwin" and platform.machine()=="arm64":
     #print("Darwin")
 
-    subprocess.run("brew")
-    os.environ['ARCHFLAGS'] = "-arch arm64"
-    os.environ['CFLAGS'] = "-arch arm64"
-    os.environ['CXXFLAGS'] = "-arch arm64 -stdlib=libc++"
-    os.environ['LDFLAGS'] = "-arch arm64 -stdlib=libc++"
-    os.environ['CC'] = 'clang'
-    os.environ['CXX'] = 'clang++'
+
     compile_args += [ "-mcpu=apple-m1", "-funroll-loops","-flto"]
 
-    OPENMP_PATH = '/opt/homebrew/opt/llvm'
-    LLVM_PATH = '/opt/homebrew/opt/libomp'
-    if not Path(LLVM_PATH).exists():
-        warnings.warn('LLVM is not found. Install it using homebrew:\nbrew install llvm\n')
-        os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
-        subprocess.run('brew install llvm'.split(' '))
+    OPENMP_PATH = '/opt/homebrew/opt/libomp'
     if not Path(OPENMP_PATH).exists():
         warnings.warn('OpenMP is not found. Install it using homebrew:\nbrew install libomp\n')
-        os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
-        subprocess.run('brew install libomp'.split(' '))
-
     else:
         compile_args += [
             '-fopenmp'
         ]
-        link_args += [f'-L{LLVM_PATH}/bin',f'-L{LLVM_PATH}/lib',f'-L{OPENMP_PATH}/lib',f'-L{OPENMP_PATH}/lib', '-fopenmp', '-lomp']
+        link_args += [f'-L{OPENMP_PATH}/lib', '-fopenmp', '-lomp']
 
-        include_dirs += [f'-L{LLVM_PATH}/include',f'{OPENMP_PATH}/include']
+        include_dirs += [f'{OPENMP_PATH}/include']
 
     link_args += compile_args
 
@@ -186,45 +171,18 @@ print(__name__)
 if __name__ == "__main__":
 
         print(logo)
+        ext_modules = cythonize(
+            extensions,
+            include_path=include_dirs,
+            compiler_directives=compiler_directives,
+            force=True,
 
+        )
 
-        try:
-            ext_modules = cythonize(
-                extensions,
-                include_path=include_dirs,
-                compiler_directives=compiler_directives,
-                force=True,
-
-            )
-            dist = Distribution({"ext_modules": ext_modules})
-            cmd = build_ext(dist)
-            cmd.ensure_finalized()
-            cmd.run()
-        except Exception as e:
-
-                homebrew = os.getenv("HOMEBREW_PREFIX")
-                if homebrew is None:
-                    raise e
-                if not (Path(homebrew)/'opt/llvm').exists() or not (Path(homebrew)/'opt/libomp').exists() :
-                    os.environ['HOMEBREW_NO_AUTO_UPDATE']='1'
-                    subprocess.run('brew install llvm'.split(' '))
-                    subprocess.run('brew install libomp'.split(' '))
-                    include_dirs.append(Path(homebrew)/'opt/llvm/include')
-                    link_args.extend( [Path(homebrew)/'opt/llvm/bin','-Wl','-rpath',Path(homebrew)/'opt/llvm/lib'])
-
-                    ext_modules = cythonize(
-                                extensions,
-                                include_path=include_dirs,
-                                compiler_directives=compiler_directives,
-                                force=True,
-
-                            )
-                    dist = Distribution({"ext_modules": ext_modules})
-                    cmd = build_ext(dist)
-                    cmd.ensure_finalized()
-                    cmd.run()
-                else:
-                    raise e
+        dist = Distribution({"ext_modules": ext_modules})
+        cmd = build_ext(dist)
+        cmd.ensure_finalized()
+        cmd.run()
 
         import os, shutil
 
