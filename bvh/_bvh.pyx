@@ -23,19 +23,15 @@ cdef extern from "vec.h" namespace "bvh" nogil:
 
 cdef extern from "aabb.h" namespace "bvh" nogil:
     cdef cppclass AABB[Vec]:
+
         Vec min
         Vec max
         bool inside(const Vec &pt) const
         bool insideStrict(const Vec &pt) const
+        double sd( const Vec &pt) const
+    
         
-        
-    cdef cppclass AABB3d:
-        vec3d min
-        vec3d max
-        bool inside(const vec3d &pt) const
-        bool insideStrict(const vec3d &pt) const
-        double sd( const vec3d &pt) const
-        void sd( const vector[vec3d] &pts, vector[double] &sdf) const
+    ctypedef AABB[vec3d] AABB3d
 
 
 cdef extern from "prims.h" namespace "bvh" nogil:
@@ -52,12 +48,13 @@ cdef extern from "prims.h" namespace "bvh" nogil:
         Vec c
 
 cdef extern from "bvh.h" namespace "bvh" nogil:
-    cdef cppclass BVH:
+    cdef cppclass BVH[Vec]:
         BVH() except +
         bint empty() const
-        AABB3d bbox() const
-        void build(const vector[Tri[vec3d]] &primitives)
-        void build(const vector[AABB[vec3d]] &primitives)
+        AABB[Vec] bbox() const
+        void build(const vector[Tri[Vec]] &primitives)
+        void build(const vector[AABB[Vec]] &primitives)
+
 
 
 cdef extern from "raycast.h" namespace "bvh" nogil:
@@ -78,22 +75,22 @@ cdef extern from "raycast.h" namespace "bvh" nogil:
     cdef cppclass pair_ulong_hash:
         size_t operator()(const pair[size_t,size_t]& p) const 
 
-    void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[size_t] &counts)
-    void raycast(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[Hit] &hits, vector[size_t] &counts)
-    void raycast_single_omp(const vector[Ray[vec3d]] &rays,const BVH &bvh,vector[Tri[vec3d]] &primitives,vector[bool] &mask)
-    void raycast_bvh(const vector[Ray[vec3d]] &rays,const BVH &bvh,  unordered_map[pair[size_t,size_t],hit3d, pair_ulong_hash] &prims_rays_hits )
+    void raycast(const vector[Ray[vec3d]] &rays,const BVH[vec3d]&bvh,const  vector[Tri[vec3d]] &primitives, vector[size_t] &counts)
+    void raycast(const vector[Ray[vec3d]] &rays,const BVH[vec3d]&bvh,const  vector[Tri[vec3d]] &primitives, vector[Hit] &hits, vector[size_t] &counts)
+    void raycast_single_omp(const vector[Ray[vec3d]] &rays,const BVH[vec3d]&bvh,vector[Tri[vec3d]] &primitives,vector[bool] &mask)
+    void raycast_bvh(const vector[Ray[vec3d]] &rays,const BVH[vec3d]&bvh,  unordered_map[pair[size_t,size_t],hit3d, pair_ulong_hash] &prims_rays_hits )
 
     
 
 cdef extern from "reflection.h" namespace "bvh" nogil:
-    void reflect(const vector[Ray[vec3d]] &rays,const BVH &bvh,const  vector[Tri[vec3d]] &primitives, vector[Ray[vec3d]]&reflected, vector[bool] &mask)
+    void reflect(const vector[Ray[vec3d]] &rays,const BVH[vec3d]&bvh,const  vector[Tri[vec3d]] &primitives, vector[Ray[vec3d]]&reflected, vector[bool] &mask)
 
 
 
 cdef class BVHTree:
     
     cdef vector[AABB[vec3d]] primitives
-    cdef BVH bvh
+    cdef BVH[vec3d] bvh
     
     def __init__(self, double[:,:,:] boxes):
         
@@ -102,7 +99,7 @@ cdef class BVHTree:
         cdef size_t n = boxes.shape[0]
      
         self.primitives=vector[AABB[vec3d]](n)
-        self.bvh=BVH()
+        self.bvh=BVH[vec3d]()
 
         for i in range(n):
             self.primitives[i].min.x=boxes[i,0,0]
@@ -238,7 +235,7 @@ cdef class BVHTree:
         cdef unordered_map[ pair[size_t,size_t],hit3d, pair_ulong_hash].iterator it = prims_rays_hits_cpp.begin()
         cdef size_t x=0;
         cdef double[:, :] bhit3d=np.empty((prims_rays_hits_cpp.size(),4))
-        
+
         while(it != prims_rays_hits_cpp.end()):
             # let's pretend here I just want to print the key and the value
             pykey=(dereference(it).first.first,      dereference(it).first.second)
@@ -262,7 +259,7 @@ cdef class BVHTree:
 
 cdef class TriangleSoup:
     cdef vector[Tri[vec3d]] primitives
-    cdef BVH bvh
+    cdef BVH[vec3d] bvh
 
     def __init__(self, double[:,:,:] triangles):
         
@@ -271,7 +268,7 @@ cdef class TriangleSoup:
         cdef size_t n = triangles.shape[0]
      
         self.primitives=vector[Tri[vec3d]](n)
-        self.bvh=BVH()
+        self.bvh=BVH[vec3d]()
 
         for i in range(n):
             self.primitives[i].a.x=triangles[i,0,0]

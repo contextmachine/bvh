@@ -5,9 +5,7 @@
 #ifndef REFLECTION_H
 #define REFLECTION_H
 #include "vec.h"
-#include "aabb.h"
 #include "bvh.h"
-#include "interval.h"
 #include "raycast.h"
 #include "prims.h"
 #include <vector>
@@ -90,7 +88,7 @@ namespace bvh {
 
 
 inline void reflect(const std::vector<Ray<vec<double, 3> > > &rays,
-    const BVH &bvh,
+    const BVH<vec3d> &bvh,
     const std::vector<Tri<vec3d> > &primitives,
     std::vector<Ray<vec3d > > &reflected,
     std::vector<bool> &mask) {

@@ -70,7 +70,7 @@ namespace bvh {
 
         // Then use it in your map:
 
-        inline void raycast_bvh_internal(const size_t ray_id, const Segm<vec<double, 3> > &inp,  const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
+        inline void raycast_bvh_internal(const size_t ray_id, const Segm<vec<double, 3> > &inp,  const vec<double,3> &dir, const BVH<vec3d> &bvh, size_t node_idx,
                                      std::unordered_map<std::pair<size_t,size_t>,hit3d,pair_ulong_hash> &prims_rays_hits) {
             auto &node = bvh.nodes[node_idx];
             Segm<vec<double, 3> > out;
@@ -106,7 +106,7 @@ namespace bvh {
         }
 
 
-        inline void raycast_internal(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
+        inline void raycast_internal(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH<vec3d> &bvh, size_t node_idx,
                                      std::vector<Hit> &hits, const std::vector<Tri<vec3d> > &primitives) {
             auto &node = bvh.nodes[node_idx];
             Segm<vec<double, 3> > out;
@@ -133,7 +133,7 @@ namespace bvh {
                 }
             }
         }
-        inline bool raycast_internal_first(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
+        inline bool raycast_internal_first(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH<vec3d> &bvh, size_t node_idx,
                                  Hit &hit, const std::vector<Tri<vec3d> > &primitives, const bool include_start=true) {
             auto &node = bvh.nodes[node_idx];
 
@@ -198,7 +198,7 @@ namespace bvh {
             }
 
 
-        inline void raycast_internal(const Segm<vec<double, 3> > &inp, const BVH &bvh, size_t node_idx,
+        inline void raycast_internal(const Segm<vec<double, 3> > &inp, const BVH<vec3d> &bvh, size_t node_idx,
                                       const std::vector<Tri<vec3d> > &primitives, size_t &counts) {
             auto &node = bvh.nodes[node_idx];
             Segm<vec<double, 3> > out;
@@ -218,7 +218,7 @@ namespace bvh {
                 }
             }
         }
-        inline bool raycast_internal(const Segm<vec<double, 3> > &inp, const BVH &bvh, size_t node_idx,
+        inline bool raycast_internal(const Segm<vec<double, 3> > &inp, const BVH<vec3d> &bvh, size_t node_idx,
                                          const std::vector<Tri<vec3d> > &primitives) {
             auto &node = bvh.nodes[node_idx];
             Segm<vec<double, 3> > out;
@@ -264,7 +264,7 @@ namespace bvh {
      * @param hits A vector to store the resulting intersection points. If the ray intersects any triangles, the points of intersection are appended to this vector.
      */
     inline void raycast(const Ray<vec<double, 3> > &ray,
-                        const BVH &bvh,
+                        const BVH<vec3d> &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
                         std::vector<Hit> &hits) {
         double tmin = 0;
@@ -293,7 +293,7 @@ namespace bvh {
      * @param counts A reference to a variable tracking the total count of intersections detected during the raycasting process.
      */
     inline void raycast(const Ray<vec<double, 3> > &ray,
-                        const BVH &bvh,
+                        const BVH<vec3d> &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
                         size_t &counts) {
         double tmin = 0;
@@ -319,7 +319,7 @@ namespace bvh {
      * @param hits A vector to store the intersection points. The results of the segment intersections are appended to this vector.
      */
     inline void raycast(const Segm<vec<double, 3> > &segm,
-                        const BVH &bvh,
+                        const BVH<vec3d> &bvh,
                         const std::vector<Tri<vec3d> > &primitives, std::vector<Hit> &hits) {
         detail::raycast_internal(segm,segm.end-segm.start, bvh, 0, hits, primitives);
     }
@@ -336,7 +336,7 @@ namespace bvh {
      */
     inline void raycast(const std::vector<Ray<vec<double, 3> > > &rays,
 
-                        const BVH &bvh,
+                        const BVH<vec3d> &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
                         std::vector<Hit> &hits,
                         std::vector<size_t> &counts) {
@@ -369,7 +369,7 @@ namespace bvh {
     }
     inline void raycast_first(const std::vector<Ray<vec<double, 3> > > &rays,
 
-                        const BVH &bvh,
+                        const BVH<vec3d> &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
                         std::vector<Hit> &hits,
                         std::vector<size_t> &counts,const bool include_start=true) {
@@ -423,7 +423,7 @@ namespace bvh {
      *        is updated with the number of primitives that the ray intersects.
      */
     inline void raycast(const std::vector<Ray<vec<double, 3> > > &rays,
-                        const BVH &bvh,
+                        const BVH<vec3d> &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
                         std::vector<size_t> &counts
                         ) {
@@ -461,7 +461,7 @@ namespace bvh {
 
     inline void raycast_bvh(const std::vector<Ray<vec<double, 3>>> &rays,
 
-                            const BVH &bvh,
+                            const BVH<vec3d> &bvh,
                             std::unordered_map<std::pair<size_t, size_t>, hit3d,pair_ulong_hash> &prims_rays_hits
 
 
@@ -499,7 +499,7 @@ namespace bvh {
      * @param allHits      A vector of hit-lists, one entry per ray in `rays`.
      */
     inline void raycast_single_omp(const std::vector<Ray<vec<double, 3>>> &rays,
-                            const BVH &bvh,
+                            const BVH<vec3d> &bvh,
                             const std::vector<Tri<vec3d>> &primitives,
                             std::vector<bool> &mask)
     {

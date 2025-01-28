@@ -18,12 +18,17 @@ namespace bvh {
     using AABB3d = AABB<vec3d>;
 
 
-
+    template<typename Vec>
     /*****************************************************************************************
      *  BVH Node
      *****************************************************************************************/
     struct BVHNode {
-        AABB3d bbox;
+        using vec_type = Vec;
+        using value_type = typename Vec::value_type;
+        constexpr static size_t dim = Vec::dim;
+
+
+        AABB<vec_type> bbox;
         int left = -1;
         int right = -1;
         int object = -1; // index of the object (leaf), -1 if it's an internal node
@@ -39,7 +44,38 @@ namespace bvh {
     constexpr inline size_t leftChild(const size_t i) noexcept { return 2 * i + 1; }
     constexpr inline size_t rightChild(const size_t i) noexcept { return 2 * i + 2; }
 
+    template<typename Iter, typename Vec>
+    Iter split_objects(Iter begin, Iter end) {
+        if (begin == end) {
+            throw std::runtime_error("split_objects: empty range");
+        }
 
+        // Compute the bounding of centroids
+        Vec minC = begin->second.centroid;
+        Vec maxC = begin->second.centroid;
+        for (auto it = std::next(begin); it != end; ++it) {
+            const Vec &c = it->second.centroid;
+            for (size_t i = 0; i < Vec::dim; ++i) {
+                if (c[i] < minC[i]) minC[i]= c[i];
+                if (c[i] > maxC[i]) maxC[i] = c[i];
+            }
+
+
+        }
+
+        Vec diff = maxC - minC;
+        int axis = max_axis(diff); // 0 => x, 1 => y, 2 => z
+
+        // Sort range [begin, end) by centroid[axis]
+        std::sort(begin, end, [axis](auto &a, auto &b) {
+            return a.second.centroid[axis] < b.second.centroid[axis];
+        });
+
+        // Return the midpoint
+        auto total = std::distance(begin, end);
+        auto midOffset = total / 2;
+        return std::next(begin, midOffset);
+    }
     template<typename Iter>
     Iter split_objects(Iter begin, Iter end) {
         if (begin == end) {
@@ -47,10 +83,11 @@ namespace bvh {
         }
 
         // Compute the bounding of centroids
-        auto minC = begin->second.centroid;
-        auto maxC = begin->second.centroid;
+        vec3d minC = begin->second.centroid;
+        vec3d maxC = begin->second.centroid;
         for (auto it = std::next(begin); it != end; ++it) {
-            const auto &c = it->second.centroid;
+            const vec3d &c = it->second.centroid;
+
             if (c.x < minC.x) minC.x = c.x;
             if (c.y < minC.y) minC.y = c.y;
             if (c.z < minC.z) minC.z = c.z;
@@ -60,7 +97,7 @@ namespace bvh {
             if (c.z > maxC.z) maxC.z = c.z;
         }
 
-        bvh::vec3 diff = maxC - minC;
+        vec3d diff = maxC - minC;
         int axis = max_axis(diff); // 0 => x, 1 => y, 2 => z
 
         // Sort range [begin, end) by centroid[axis]
@@ -74,27 +111,31 @@ namespace bvh {
         return std::next(begin, midOffset);
     }
 
-
+    template<typename Vec>
     /*
      *  BVH class represents a Bounding Volume Hierarchy (BVH) structure used to efficiently
-     *  organize and query spatial data, such as bounding boxes (AABB3d).
+     *  organize and query spatial data, such as bounding boxes (AABB<vec_type>).
     */
     class BVH {
+
     public:
-        std::vector<BVHNode> nodes;
+        using vec_type = Vec;
+        using value_type = typename Vec::value_type;
+        constexpr static size_t dim = Vec::dim;
+        std::vector<BVHNode<vec_type>> nodes;
         size_t root_index = 0; // index of root node in 'nodes'
 
         BVH() = default;
 
-        BVHNode &getRoot() {
+        BVHNode<vec_type> &getRoot() {
             return nodes[root_index];
         }
 
-        AABB3d bbox() const {
+        const AABB<vec_type>& bbox() const {
             return getRoot().bbox;
         }
 
-        const BVHNode &getRoot() const {
+        const BVHNode<vec_type> &getRoot() const {
             return nodes[root_index];
         }
         bool empty() const {
@@ -128,7 +169,7 @@ namespace bvh {
                 return currentIndex;
             }
             // Otherwise, we split
-            auto mid = split_objects(begin, end);
+            auto mid = split_objects<Iter,vec_type>(begin, end);
 
             // Build children
             nodes[currentIndex].left = _build_bvh_internal(begin, mid, leftChild(currentIndex));
@@ -154,10 +195,22 @@ namespace bvh {
         }
 
     public:
+        template<typename TP>
+        BVH<vec_type>  &build(const std::vector<TP> &primitives) {
+
+            std::vector<AABB<vec_type>> bboxes(primitives.size());
+
+            for (size_t i = 0; i < primitives.size(); ++i) {
+                auto& prim = primitives[i];
+                prim.bbox(bboxes[i]);
+
+            }
+            return build(bboxes);
+        }
         /*
          * Builds a Bounding Volume Hierarchy (BVH) from a list of axis-aligned bounding boxes (AABB).
          *
-         * @param bboxes A vector of 3D axis-aligned bounding boxes (AABB3d) representing geometric objects.
+         * @param bboxes A vector of 3D axis-aligned bounding boxes (AABB<vec_type>) representing geometric objects.
          *               Each AABB corresponds to the bounding box of an individual object.
          * @return A reference to the BVH object after constructing and organizing the tree structure.
          *
@@ -166,7 +219,7 @@ namespace bvh {
          * The method reserves space for all potential BVH nodes and uses a recursive function to construct
          * the hierarchy by partitioning the AABBs into spatial subdivisions.
          */
-        BVH &build(const std::vector<AABB3d> &bboxes) {
+        BVH &build(const std::vector<AABB<vec_type>> &bboxes) {
             if (bboxes.empty()) {
                 nodes.clear();
                 root_index = 0;
@@ -176,8 +229,8 @@ namespace bvh {
             std::size_t n = bboxes.size();
             nodes.resize(2 * n - 1);
 
-            // Create temporary array of (objectIndex, AABB3d)
-            std::vector<std::pair<int, AABB3d> > objects;
+            // Create temporary array of (objectIndex, AABB<vec_type>)
+            std::vector<std::pair<int, AABB<vec_type>> > objects;
             objects.reserve(n);
             for (std::size_t i = 0; i < n; ++i) {
                 objects.push_back({static_cast<int>(i), bboxes[i]});
@@ -189,21 +242,10 @@ namespace bvh {
         }
 
 
-        template<typename TP>
-        BVH &build(const std::vector<TP > &primitives) {
 
-            std::vector<AABB3d> bboxes(primitives.size());
 
-            for (size_t i = 0; i < primitives.size(); ++i) {
-                auto& prim = primitives[i];
-                prim.bbox(bboxes[i]);
-
-            }
-            return build(bboxes);
-        }
-
-        BVH &build(const std::vector<Tri<vec3d> > &primitives) {
-            std::vector<AABB3d> bboxes(primitives.size());
+        BVH<vec_type> &build(const std::vector<Tri<vec_type> > &primitives) {
+            std::vector<AABB<vec_type>> bboxes(primitives.size());
             for (size_t i = 0; i < primitives.size(); ++i) {
                 bboxes[i].expand(primitives[i].a);
                 bboxes[i].expand(primitives[i].b);
@@ -212,13 +254,29 @@ namespace bvh {
             return build(bboxes);
         }
 
-        inline friend std::ostream &operator<<(std::ostream &os, const BVH &obj) {
+        inline friend std::ostream &operator<<(std::ostream &os, const BVH<vec_type> &obj) {
             os << "[";
             obj.print_internal(os, 0);
             os << "]";
             return os;
         }
-        
+
+        void get_bboxes(std::vector<AABB<vec_type>> &bboxes) const {
+            bboxes.clear();
+            bboxes.resize(nodes.size());
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                bboxes[i] = nodes[i].bbox;
+            }
+        }
+        inline void reset() {
+            nodes.clear();
+            root_index=0;
+
+        }
+
+
+
     };
+
 } // end namespace bvh
 #endif

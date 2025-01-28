@@ -9,6 +9,7 @@
 #include <ostream>
 #include <type_traits>
 #include <algorithm>
+#include "vec.h"
 #include "prims.h"
 #include "typecodes.h"
 namespace bvh {
