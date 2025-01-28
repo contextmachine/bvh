@@ -9,13 +9,15 @@
 #include <limits>
 #include "vec.h"    // Must include the provided "vec.h"
 #include "aabb.h"   // Must include the provided "aabb.h"
-
+#include "prims.h"
 
 namespace bvh {
     /*****************************************************************************************
      *  Using AABB for 3D (common case)
      *****************************************************************************************/
     using AABB3d = AABB<vec3d>;
+
+
 
     /*****************************************************************************************
      *  BVH Node
@@ -185,6 +187,21 @@ namespace bvh {
             root_index = _build_bvh_internal(objects.begin(), objects.end(), 0);
             return *this;
         }
+
+
+        template<typename TP>
+        BVH &build(const std::vector<TP > &primitives) {
+
+            std::vector<AABB3d> bboxes(primitives.size());
+
+            for (size_t i = 0; i < primitives.size(); ++i) {
+                auto& prim = primitives[i];
+                prim.bbox(bboxes[i]);
+
+            }
+            return build(bboxes);
+        }
+
         BVH &build(const std::vector<Tri<vec3d> > &primitives) {
             std::vector<AABB3d> bboxes(primitives.size());
             for (size_t i = 0; i < primitives.size(); ++i) {
@@ -194,6 +211,7 @@ namespace bvh {
             }
             return build(bboxes);
         }
+
         inline friend std::ostream &operator<<(std::ostream &os, const BVH &obj) {
             os << "[";
             obj.print_internal(os, 0);

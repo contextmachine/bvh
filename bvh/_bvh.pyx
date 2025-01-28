@@ -28,11 +28,16 @@ cdef extern from "aabb.h" namespace "bvh" nogil:
         bool inside(const Vec &pt) const
         bool insideStrict(const Vec &pt) const
         
+        
     cdef cppclass AABB3d:
         vec3d min
         vec3d max
         bool inside(const vec3d &pt) const
         bool insideStrict(const vec3d &pt) const
+        double sd( const vec3d &pt) const
+        void sd( const vector[vec3d] &pts, vector[double] &sdf) const
+
+
 cdef extern from "prims.h" namespace "bvh" nogil:
     cdef cppclass Segm[Vec]:
         Vec start
@@ -89,7 +94,7 @@ cdef class BVHTree:
     
     cdef vector[AABB[vec3d]] primitives
     cdef BVH bvh
-
+    
     def __init__(self, double[:,:,:] boxes):
         
 
@@ -106,6 +111,30 @@ cdef class BVHTree:
             self.primitives[i].max.x=boxes[i,1,0]
             self.primitives[i].max.y=boxes[i,1,1]
             self.primitives[i].max.z=boxes[i,1,2]
+    
+
+    def leafs_count(self):
+        return self.primitives.size()
+    
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    @cython.initializedcheck(False)
+    @cython.nonecheck(True)
+    def get_leafs(self):
+        cdef size_t n = self.primitives.size()
+        cdef double[:,:,:] prims=np.empty((n,2,3))
+        cdef size_t i;
+        for i in range(n):
+            prims[i,0,0]=self.primitives[i].min.x
+            prims[i,0,1]=self.primitives[i].min.y
+            prims[i,0,2]=self.primitives[i].min.z
+            prims[i,1,0]=self.primitives[i].max.x
+            prims[i,1,1]=self.primitives[i].max.y
+            prims[i,1,2]=self.primitives[i].max.z
+        return prims
+
+    
 
 
     @cython.boundscheck(False)
@@ -209,7 +238,7 @@ cdef class BVHTree:
         cdef unordered_map[ pair[size_t,size_t],hit3d, pair_ulong_hash].iterator it = prims_rays_hits_cpp.begin()
         cdef size_t x=0;
         cdef double[:, :] bhit3d=np.empty((prims_rays_hits_cpp.size(),4))
-
+        
         while(it != prims_rays_hits_cpp.end()):
             # let's pretend here I just want to print the key and the value
             pykey=(dereference(it).first.first,      dereference(it).first.second)
@@ -222,7 +251,8 @@ cdef class BVHTree:
             postincrement(it) # Increment the iterator to the net element
             
             x+=1
-
+        
+        
 
         return py_prims_rays_hits, bhit3d
 
@@ -254,7 +284,29 @@ cdef class TriangleSoup:
             self.primitives[i].c.y=triangles[i,2,1]
             self.primitives[i].c.z=triangles[i,2,2]
 
-
+    def leafs_count(self):
+        return self.primitives.size()
+     
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    @cython.initializedcheck(False)
+    @cython.nonecheck(True)
+    def get_leafs(self):
+        cdef size_t n = self.primitives.size()
+        cdef double[:,:,:] prims=np.empty((n,3,3))
+        cdef size_t i;
+        for i in range(n):
+            prims[i,0,0]=self.primitives[i].a.x
+            prims[i,0,1]=self.primitives[i].a.y
+            prims[i,0,2]=self.primitives[i].a.z
+            prims[i,1,0]=self.primitives[i].b.x
+            prims[i,1,1]=self.primitives[i].b.y
+            prims[i,1,2]=self.primitives[i].b.z
+            prims[i,2,0]=self.primitives[i].c.x
+            prims[i,2,1]=self.primitives[i].c.y
+            prims[i,2,2]=self.primitives[i].c.z
+        return prims
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
@@ -456,6 +508,7 @@ cdef class TriangleSoup:
         rays_cpp=vector[Ray[vec3d]](n)
         if inside is None:
             inside=np.zeros((n,),np.bool_)
+        
         for i in range(n):
 
             rays_cpp[i].start.x=points[i,0]
@@ -471,7 +524,29 @@ cdef class TriangleSoup:
 
             inside[i]=(counts_cpp[i]%2)
         return inside
+    """
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def sd(self, double[:,:] points, double[:] result=None):
+        cdef vector[vec3d] pts=vector[vec3d](points.shape[0])
+        cdef vector[double] result_cpp=vector[double](points.shape[0])
+        cdef size_t i;
+        cdef size_t n = points.shape[0]
+        if result is None:
+            result=np.empty((n,),dtype=np.double)
+        for i in range(n):
+            pts[i].x=points[i,0]
+            pts[i].y=points[i,1]
+            pts[i].z=points[i,2]
+        
+        self.bvh.sd(pts,result_cpp)
+        raycast_first(rays_cpp,self.bvh,self.primitives,counts_cpp)
+        memcpy(result,result_cpp.data(),n*sizeof(double))
+        
+        return result
+    """
+
 
         
-     
-        
+   

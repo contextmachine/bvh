@@ -10,7 +10,7 @@
 #include "bvh/vec.h"
 #include "bvh/bvh.h"
 #include "bvh/aabb.h"
-
+#include "bvh/distance.h"
 #include <chrono>
 #include <cstring>
 #include <iostream>

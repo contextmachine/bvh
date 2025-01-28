@@ -19,6 +19,8 @@
 // Everywhere else (Linux, macOS, MinGW, etc.), use size_t
 #  define OMP_INDEX_TYPE size_t
 #endif
+
+
 namespace bvh {
     namespace detail {
         inline void tri_normal(const Tri<vec3d> &tri, vec3d& normal
@@ -31,9 +33,7 @@ namespace bvh {
 
 
         }
-        inline void reflect_one(const vec3d &direction , const vec3d &normal,vec3d &res) {
-            res= direction - normal * 2.0 * direction.dot( normal) ;
-        }
+
         // Parallel prefix sum (inclusive scan) of 'in' into 'out'
         inline void parallel_prefix_sum(const std::vector<size_t>& in, std::vector<size_t>& out)
         {
@@ -83,6 +83,12 @@ namespace bvh {
             }
         }
     }
+    inline void reflect_one(const vec3d &direction , const vec3d &normal,vec3d &res) {
+        res= direction - normal * 2.0 * direction.dot( normal) ;
+
+    }
+
+
 inline void reflect(const std::vector<Ray<vec<double, 3> > > &rays,
     const BVH &bvh,
     const std::vector<Tri<vec3d> > &primitives,
@@ -93,25 +99,16 @@ inline void reflect(const std::vector<Ray<vec<double, 3> > > &rays,
         std::vector<size_t> counts;
         auto normals=std::vector<vec3d>(primitives.size(), {0,0,0});
         mask.resize(rays.size(),true);
-
-
         reflected.resize(rays.size(), {{0.,0.,0.},{0.,0.,0.}});
-        raycast_first(rays,bvh,primitives,hits,counts);
+
+        raycast_first(rays,bvh,primitives,hits,counts, false);
         std::vector<size_t> offsets(counts.size());
-
-
         for (size_t i = 0; i < rays.size(); ++i)
             {
-
-
                 if (counts[i]==0) {
                     mask[i]=false;
                     continue;
-
                 }
-
-                
-
                 const auto& hit=hits[i];
                 reflected[i].start=hit.second;
                 const auto& prim =primitives[hit.prim];
@@ -120,7 +117,7 @@ inline void reflect(const std::vector<Ray<vec<double, 3> > > &rays,
                     detail::tri_normal(prim,normal);
 
                 }
-                detail::reflect_one(rays[i].direction,normal,reflected[i].direction);
+                reflect_one(rays[i].direction,normal,reflected[i].direction);
 
 
             }

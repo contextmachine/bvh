@@ -1,4 +1,6 @@
-
+# cython: language_level=3
+# distutils: language = c++
+# cython: c_string_type=unicode, c_string_encoding=utf8
 cimport cython
 cimport bvh.serialization
 

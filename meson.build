@@ -4,7 +4,7 @@ project('bvh', 'cpp',
 # Detect the host operating system
 simd_args = ['-flto']
 link_args=[ '-flto']
-
+eigen_dep = dependency('eigen3', required: false)
 
 if host_machine.system() == 'darwin'
     #simd_args = ['-march=armv8-a+simd']

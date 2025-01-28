@@ -19,7 +19,7 @@ namespace bvh {
          * but was in the original code, so we keep it.
          */
         template<typename Vec, typename T = typename Vec::value_type>
-        T sdBBox(const Vec &p, const Vec &b) {
+        constexpr T sdBBox(const Vec &p, const Vec &b) {
             Vec d = p.abs() - b;
             return std::min(d.max_val(), T(0)) + d.max(T(0)).length();
         }
@@ -66,7 +66,7 @@ namespace bvh {
         /************************************
          * Constructors
          ************************************/
-        AABB() {
+        constexpr AABB() {
             // Initialize "empty" box so any real expansions fix them
             for (std::size_t i = 0; i < dim; ++i) {
                 min[i] = std::numeric_limits<scalar_type>::max();
@@ -76,13 +76,13 @@ namespace bvh {
         }
 
         // Construct from explicit min, max
-        AABB(const vec_type &vmin, const vec_type &vmax)
+        constexpr AABB(const vec_type &vmin, const vec_type &vmax)
             : min(vmin), max(vmax) {
             updateCentroid();
         }
 
         // Construct from list of points
-        AABB(const std::vector<vec_type> &pts) {
+        constexpr AABB(const std::vector<vec_type> &pts) {
             if (pts.empty()) {
                 // define an "empty" box
                 for (std::size_t i = 0; i < dim; ++i) {
@@ -103,7 +103,7 @@ namespace bvh {
          *  Intersection Check (AABB vs AABB)
          ************************************/
         // Overlaps if each dimension's intervals overlap
-        bool intersects(const AABB &other) const {
+        constexpr bool intersects(const AABB &other) const {
             for (std::size_t i = 0; i < dim; ++i) {
                 if (min[i] > other.max[i] || max[i] < other.min[i]) {
                     return false;
@@ -113,7 +113,7 @@ namespace bvh {
         }
 
         // Intersection region, if any
-        bool intersection(const AABB &other, AABB &result) const {
+        constexpr bool intersection(const AABB &other, AABB &result) const {
             if (!intersects(other)) {
                 return false;
             }
@@ -131,7 +131,7 @@ namespace bvh {
          ************************************/
         // volume = product of (max[i] - min[i]) for i in [0..dim)
         // If any dimension is negative (min>max), the volume is 0.
-        scalar_type volume() const {
+        constexpr scalar_type volume() const {
             scalar_type vol = scalar_type(1);
             for (std::size_t i = 0; i < dim; ++i) {
                 scalar_type d = max[i] - min[i];
@@ -147,7 +147,7 @@ namespace bvh {
          *  Merge
          ************************************/
         // Merged bounding box of this and 'other'
-        AABB merge(const AABB &other) const {
+        constexpr AABB merge(const AABB &other) const {
             vec_type mmin = min;
             vec_type mmax = max;
             for (std::size_t i = 0; i < dim; ++i) {
@@ -161,7 +161,7 @@ namespace bvh {
          *  Expand
          ************************************/
         // Expand by a point
-        void expand(const vec_type &pt) {
+        constexpr void expand(const vec_type &pt) {
             for (std::size_t i = 0; i < dim; ++i) {
                 if (pt[i] < min[i]) min[i] = pt[i];
                 if (pt[i] > max[i]) max[i] = pt[i];
@@ -170,7 +170,7 @@ namespace bvh {
         }
 
         // Expand by another AABB
-        void expand(const AABB &bb) {
+        constexpr void expand(const AABB &bb) {
             for (std::size_t i = 0; i < dim; ++i) {
                 if (bb.min[i] < min[i]) min[i] = bb.min[i];
                 if (bb.max[i] > max[i]) max[i] = bb.max[i];
@@ -178,18 +178,12 @@ namespace bvh {
             updateCentroid();
         }
 
-        /************************************
-         *  Signed Distance (from original code)
-         ************************************/
-        scalar_type sd(const vec_type &pt) const {
-            vec_type cnt = (min + max) / scalar_type(2);
-            return detail::sdBBox<vec_type>(pt - cnt, max - cnt);
-        }
+
 
         /************************************
          *  Update centroid
          ************************************/
-        void updateCentroid() {
+        constexpr void updateCentroid() {
             centroid = (min + max) * scalar_type(0.5);
         }
 
@@ -198,7 +192,7 @@ namespace bvh {
          *
          *  Returns true if intersection occurs; tEnter/tExit define param range.
          ************************************/
-        bool intersectRay(const Ray<vec_type> &ray, scalar_type &tEnter, scalar_type &tExit) const {
+        constexpr bool intersectRay(const Ray<vec_type> &ray, scalar_type &tEnter, scalar_type &tExit) const {
             tEnter = -std::numeric_limits<scalar_type>::infinity();
             tExit = std::numeric_limits<scalar_type>::infinity();
 
@@ -231,7 +225,7 @@ namespace bvh {
          *
          * On success, segm will contain the portion of the ray inside the box.
          */
-        bool clip(const Ray<vec_type> &ray, Segm<vec_type> &segm) const {
+        constexpr bool clip(const Ray<vec_type> &ray, Segm<vec_type> &segm) const {
             scalar_type tEnter = -std::numeric_limits<scalar_type>::infinity();
             scalar_type tExit = std::numeric_limits<scalar_type>::infinity();
 
@@ -278,7 +272,7 @@ namespace bvh {
             return true;
         }
 
-        bool inside(const vec_type &pt) const {
+        constexpr bool inside(const vec_type &pt) const {
             for (std::size_t i = 0; i < dim; ++i) {
                 if (!((min[i] <= pt[i]) && (pt[i] <= max[i]))) {
                     return false;
@@ -287,7 +281,7 @@ namespace bvh {
             return true;
         }
 
-        bool insideStrict(const vec_type &pt) const {
+        constexpr bool insideStrict(const vec_type &pt) const {
             for (std::size_t i = 0; i < dim; ++i) {
                 if (!((min[i] < pt[i]) && (pt[i] < max[i]))) {
                     return false;
@@ -295,6 +289,45 @@ namespace bvh {
             }
             return true;
         }
+
+        constexpr void clear() {
+            // Initialize "empty" box so any real expansions fix them
+            for (std::size_t i = 0; i < dim; ++i) {
+                min[i] = std::numeric_limits<scalar_type>::max();
+                max[i] = std::numeric_limits<scalar_type>::lowest();
+            }
+            centroid.set(0);
+        }
+
+        constexpr value_type sd(const Vec &pt) const {
+            Vec cnt = (min + max) / 2;
+            return detail::sdBBox<Vec>(pt - cnt, max - cnt);
+
+        }
+
+
+        constexpr void sd(const std::vector<Vec> &pts, std::vector<value_type> &result ) const {
+            result.clear();
+            const Vec cnt = (min + max) / 2;
+            const Vec bb_cnt=max - cnt;
+            const size_t n=pts.size();
+            result.resize(n, 0);
+            for (size_t i = 0; i < n; ++i) {
+                auto&pt = pts[i];
+
+                result[i] = detail::sdBBox<Vec>(pt - cnt, bb_cnt);
+            }
+        }
+        constexpr value_type distanceSq(const vec_type &pt) const {
+            // For each axis, find the point on the AABB boundary closest to p
+            vec_type d(0);
+            for (std::size_t i = 0; i < dim; ++i) {
+                if (pt[i] < min[i]) d[i] = min[i] - pt[i];
+                else if (pt[i] > max[i]) d[i]= pt[i] - max[i];
+            }
+            return d.lengthSq();
+        }
+
     };
 
     /*****************************************************************************************
@@ -310,7 +343,7 @@ namespace bvh {
         vec_type min, max, centroid;
         static constexpr std::size_t dim = 2;
     public:
-        AABB() {
+        constexpr AABB() {
             min.x = std::numeric_limits<T>::max();
             min.y = std::numeric_limits<T>::max();
             max.x = std::numeric_limits<T>::lowest();
@@ -318,12 +351,12 @@ namespace bvh {
             updateCentroid();
         }
 
-        AABB(const vec_type &vmin, const vec_type &vmax)
+        constexpr AABB(const vec_type &vmin, const vec_type &vmax)
             : min(vmin), max(vmax) {
             updateCentroid();
         }
 
-        AABB(const std::vector<vec_type> &pts) {
+        constexpr AABB(const std::vector<vec_type> &pts) {
             if (pts.empty()) {
                 min.x = std::numeric_limits<T>::max();
                 min.y = std::numeric_limits<T>::max();
@@ -339,7 +372,7 @@ namespace bvh {
             }
         }
 
-        bool intersects(const AABB &other) const {
+        constexpr bool intersects(const AABB &other) const {
             // overlap if [minX <= other.maxX, maxX >= other.minX] etc
             if (min.x > other.max.x) return false;
             if (max.x < other.min.x) return false;
@@ -348,7 +381,7 @@ namespace bvh {
             return true;
         }
 
-        bool intersection(const AABB &other, AABB &result) const {
+        constexpr bool intersection(const AABB &other, AABB &result) const {
             if (!intersects(other)) {
                 return false;
             }
@@ -360,7 +393,7 @@ namespace bvh {
             return true;
         }
 
-        scalar_type volume() const {
+        constexpr scalar_type volume() const {
             // 2D "volume" => area
             T dx = max.x - min.x;
             T dy = max.y - min.y;
@@ -370,13 +403,13 @@ namespace bvh {
             return dx * dy;
         }
 
-        AABB merge(const AABB &other) const {
+        constexpr AABB merge(const AABB &other) const {
             AABB ret(*this);
             ret.expand(other);
             return ret;
         }
 
-        void expand(const vec_type &pt) {
+        constexpr void expand(const vec_type &pt) {
             if (pt.x < min.x) min.x = pt.x;
             if (pt.y < min.y) min.y = pt.y;
             if (pt.x > max.x) max.x = pt.x;
@@ -384,7 +417,7 @@ namespace bvh {
             updateCentroid();
         }
 
-        void expand(const AABB &bb) {
+        constexpr void expand(const AABB &bb) {
             if (bb.min.x < min.x) min.x = bb.min.x;
             if (bb.min.y < min.y) min.y = bb.min.y;
             if (bb.max.x > max.x) max.x = bb.max.x;
@@ -392,13 +425,13 @@ namespace bvh {
             updateCentroid();
         }
 
-        void updateCentroid() {
+        constexpr void updateCentroid() {
             centroid.x = (min.x + max.x) * T(0.5);
             centroid.y = (min.y + max.y) * T(0.5);
         }
 
         // Slab-based Ray vs. AABB intersection (2D)
-        bool intersectRay(const Ray<vec_type> &ray, T &tEnter, T &tExit) const {
+        constexpr bool intersectRay(const Ray<vec_type> &ray, T &tEnter, T &tExit) const {
             tEnter = -std::numeric_limits<T>::infinity();
             tExit = std::numeric_limits<T>::infinity();
 
@@ -433,14 +466,36 @@ namespace bvh {
             return true;
         }
 
-        bool inside(const vec_type &pt) const {
+        constexpr bool inside(const vec_type &pt) const {
             return (min.x <= pt.x) && (pt.x <= max.x) &&
                    (min.y <= pt.y) && (pt.y <= max.y);
         }
 
-        bool insideStrict(const vec_type &pt) const {
+        constexpr bool insideStrict(const vec_type &pt) const {
             return (min.x < pt.x) && (pt.x < max.x) &&
                    (min.y < pt.y) && (pt.y < max.y);
+        }
+        constexpr void clear() {
+            // Initialize "empty" box so any real expansions fix them
+            min.set(std::numeric_limits<scalar_type>::max());
+            max.set( std::numeric_limits<scalar_type>::lowest());
+
+            centroid.set(0);
+        }
+        constexpr T distanceSq(const vec_type &pt)const {
+            // For each axis, find the point on the AABB boundary closest to p
+            T dx = 0;
+            T dy = 0;
+
+
+            if (pt.x < min.x) dx = min.x - pt.x;
+            else if (pt.x > max.x) dx = pt.x - max.x;
+
+            if (pt.y < min.y) dy = min.y - pt.y;
+            else if (pt.y > max.y) dy = pt.y - max.y;
+
+
+            return dx*dx + dy*dy ;
         }
     };
 
@@ -458,7 +513,7 @@ namespace bvh {
         vec_type min, max, centroid;
 
     public:
-        AABB() {
+        constexpr AABB() {
             min.x = std::numeric_limits<T>::max();
             min.y = std::numeric_limits<T>::max();
             min.z = std::numeric_limits<T>::max();
@@ -468,12 +523,12 @@ namespace bvh {
             updateCentroid();
         }
 
-        AABB(const vec_type &vmin, const vec_type &vmax)
+        constexpr AABB(const vec_type &vmin, const vec_type &vmax)
             : min(vmin.x, vmin.y, vmin.z), max(vmax.x, vmax.y, vmax.z) {
             updateCentroid();
         }
 
-        AABB(const std::vector<vec_type> &pts) {
+        constexpr AABB(const std::vector<vec_type> &pts) {
             if (pts.empty()) {
                 min.x = std::numeric_limits<T>::max();
                 min.y = std::numeric_limits<T>::max();
@@ -491,13 +546,13 @@ namespace bvh {
             }
         }
 
-        AABB(const AABB &bb) {
+         constexpr AABB(const AABB &bb) {
             min = bb.min;
             max = bb.max;
             updateCentroid();
         }
 
-        bool intersects(const AABB &other) const {
+        constexpr bool intersects(const AABB &other) const {
             if (min.x > other.max.x) return false;
             if (max.x < other.min.x) return false;
             if (min.y > other.max.y) return false;
@@ -507,7 +562,7 @@ namespace bvh {
             return true;
         }
 
-        bool intersection(const AABB &other, AABB &result) const {
+        constexpr bool intersection(const AABB &other, AABB &result) const {
             if (!intersects(other)) {
                 return false;
             }
@@ -524,7 +579,7 @@ namespace bvh {
             return true;
         }
 
-        scalar_type volume() const {
+        constexpr scalar_type volume() const {
             T dx = max.x - min.x;
             T dy = max.y - min.y;
             T dz = max.z - min.z;
@@ -534,13 +589,13 @@ namespace bvh {
             return dx * dy * dz;
         }
 
-        AABB merge(const AABB &other) const {
+        constexpr AABB merge(const AABB &other) const {
             auto ret = AABB(min, max);
             ret.expand(other);
             return ret;
         }
 
-        void expand(const vec_type &pt) {
+        constexpr void expand(const vec_type &pt) {
             if (pt.x < min.x) min.x = pt.x;
             if (pt.y < min.y) min.y = pt.y;
             if (pt.z < min.z) min.z = pt.z;
@@ -550,7 +605,7 @@ namespace bvh {
             updateCentroid();
         }
 
-        void expand(const AABB &bb) {
+        constexpr void expand(const AABB &bb) {
             if (bb.min.x < min.x) min.x = bb.min.x;
             if (bb.min.y < min.y) min.y = bb.min.y;
             if (bb.min.z < min.z) min.z = bb.min.z;
@@ -560,14 +615,15 @@ namespace bvh {
             updateCentroid();
         }
 
-        void updateCentroid() {
+        constexpr void updateCentroid() {
             centroid.x = (min.x + max.x) * T(0.5);
             centroid.y = (min.y + max.y) * T(0.5);
             centroid.z = (min.z + max.z) * T(0.5);
         }
 
+        template<typename  RayType>
         // Slab-based Ray vs. AABB intersection (3D)
-        bool intersectRay(const Ray<vec_type> &ray, T &tEnter, T &tExit) const {
+        constexpr bool intersectRay(const RayType &ray, T &tEnter, T &tExit) const {
             tEnter = -std::numeric_limits<T>::infinity();
             tExit = std::numeric_limits<T>::infinity();
 
@@ -616,12 +672,63 @@ namespace bvh {
             return true;
         }
 
+        // Slab-based Ray vs. AABB intersection (3D)
+        constexpr bool intersectRay(const Ray<vec_type> &ray, T &tEnter, T &tExit) const {
+            tEnter = -std::numeric_limits<T>::infinity();
+            tExit = std::numeric_limits<T>::infinity();
+
+            // X
+            if (std::fabs(ray.direction.x) < std::numeric_limits<T>::epsilon()) {
+                if (ray.start.x < min.x || ray.start.x > max.x)
+                    return false;
+            } else {
+                T invDx = T(1) / ray.direction.x;
+                T t0 = (min.x - ray.start.x) * invDx;
+                T t1 = (max.x - ray.start.x) * invDx;
+                if (t0 > t1) std::swap(t0, t1);
+                if (t0 > tEnter) tEnter = t0;
+                if (t1 < tExit) tExit = t1;
+                if (tEnter > tExit) return false;
+            }
+
+            // Y
+            if (std::fabs(ray.direction.y) < std::numeric_limits<T>::epsilon()) {
+                if (ray.start.y < min.y || ray.start.y > max.y)
+                    return false;
+            } else {
+                T invDy = T(1) / ray.direction.y;
+                T t0 = (min.y - ray.start.y) * invDy;
+                T t1 = (max.y - ray.start.y) * invDy;
+                if (t0 > t1) std::swap(t0, t1);
+                if (t0 > tEnter) tEnter = t0;
+                if (t1 < tExit) tExit = t1;
+                if (tEnter > tExit) return false;
+            }
+
+            // Z
+            if (std::fabs(ray.direction.z) < std::numeric_limits<T>::epsilon()) {
+                if (ray.start.z < min.z || ray.start.z > max.z)
+                    return false;
+            } else {
+                T invDz = T(1) / ray.direction.z;
+                T t0 = (min.z - ray.start.z) * invDz;
+                T t1 = (max.z - ray.start.z) * invDz;
+                if (t0 > t1) std::swap(t0, t1);
+                if (t0 > tEnter) tEnter = t0;
+                if (t1 < tExit) tExit = t1;
+                if (tEnter > tExit) return false;
+            }
+
+            return true;
+        }
+
+
         /**
          * 3D-specific clip method that clamps a forward ray (t >= 0)
          * to the portion inside this AABB. Returns true if the
          * clipped segment is non-empty. segm will hold the resulting segment.
          */
-        bool clip(const Ray<vec_type> &ray, Segm<vec_type> &segm) const {
+        constexpr bool clip(const Ray<vec_type> &ray, Segm<vec_type> &segm) const {
             T tEnter = -std::numeric_limits<T>::infinity();
             T tExit = std::numeric_limits<T>::infinity();
 
@@ -714,7 +821,7 @@ namespace bvh {
          * Returns true if the clipped segment is non-empty.
          * 'segm' will hold the result on success.
          */
-        bool clip(const Segm<vec_type> &inp, Segm<vec_type> &segm) const {
+        constexpr bool clip(const Segm<vec_type> &inp, Segm<vec_type> &segm) const {
             // Param range [tEnter, tExit] within [0,1]
             T tEnter = T(0);
             T tExit = T(1);
@@ -806,16 +913,40 @@ namespace bvh {
             return true;
         }
 
-        bool inside(const vec_type &pt) const {
+        constexpr bool inside(const vec_type &pt) const {
             return (min.x <= pt.x) && (pt.x <= max.x) &&
                    (min.y <= pt.y) && (pt.y <= max.y) &&
                    (min.z <= pt.z) && (pt.z <= max.z);
         }
 
-        bool insideStrict(const vec_type &pt) const {
+        constexpr bool insideStrict(const vec_type &pt) const {
             return (min.x < pt.x) && (pt.x < max.x) &&
                    (min.y < pt.y) && (pt.y < max.y) &&
                    (min.z < pt.z) && (pt.z < max.z);
+        }
+        constexpr void clear() {
+            // Initialize "empty" box so any real expansions fix them
+            min.set(std::numeric_limits<scalar_type>::max());
+            max.set( std::numeric_limits<scalar_type>::lowest());
+
+            centroid.set(0);
+        }
+        constexpr T distanceSq(const vec_type &pt)const {
+            // For each axis, find the point on the AABB boundary closest to p
+            T dx = 0;
+            T dy = 0;
+            T dz = 0;
+
+            if (pt.x < min.x) dx = min.x - pt.x;
+            else if (pt.x > max.x) dx = pt.x - max.x;
+
+            if (pt.y < min.y) dy = min.y - pt.y;
+            else if (pt.y > max.y) dy = pt.y - max.y;
+
+            if (pt.z < min.z) dz = min.z - pt.z;
+            else if (pt.z > max.z) dz = pt.z - max.z;
+
+            return dx*dx + dy*dy + dz*dz;
         }
     };
 
@@ -833,7 +964,7 @@ namespace bvh {
         vec_type min, max, centroid;
 
     public:
-        AABB() {
+        constexpr AABB() {
             min.x = std::numeric_limits<T>::max();
             min.y = std::numeric_limits<T>::max();
             min.z = std::numeric_limits<T>::max();
@@ -845,12 +976,12 @@ namespace bvh {
             updateCentroid();
         }
 
-        AABB(const vec_type &vmin, const vec_type &vmax)
+        constexpr AABB(const vec_type &vmin, const vec_type &vmax)
             : min(vmin), max(vmax) {
             updateCentroid();
         }
 
-        AABB(const std::vector<vec_type> &pts) {
+        constexpr AABB(const std::vector<vec_type> &pts) {
             if (pts.empty()) {
                 min.x = std::numeric_limits<T>::max();
                 min.y = std::numeric_limits<T>::max();
@@ -870,7 +1001,7 @@ namespace bvh {
             }
         }
 
-        bool intersects(const AABB &other) const {
+        constexpr bool intersects(const AABB &other) const {
             if (min.x > other.max.x) return false;
             if (max.x < other.min.x) return false;
             if (min.y > other.max.y) return false;
@@ -882,7 +1013,7 @@ namespace bvh {
             return true;
         }
 
-        bool intersection(const AABB &other, AABB &result) const {
+        constexpr bool intersection(const AABB &other, AABB &result) const {
             if (!intersects(other)) {
                 return false;
             }
@@ -902,7 +1033,7 @@ namespace bvh {
         }
 
         // "Volume" in 4D => hyper-volume
-        scalar_type volume() const {
+        constexpr scalar_type volume() const {
             T dx = max.x - min.x;
             T dy = max.y - min.y;
             T dz = max.z - min.z;
@@ -913,13 +1044,13 @@ namespace bvh {
             return dx * dy * dz * dw;
         }
 
-        AABB merge(const AABB &other) const {
+        constexpr AABB merge(const AABB &other) const {
             AABB ret(*this);
             ret.expand(other);
             return ret;
         }
 
-        void expand(const vec_type &pt) {
+        constexpr void expand(const vec_type &pt) {
             if (pt.x < min.x) min.x = pt.x;
             if (pt.y < min.y) min.y = pt.y;
             if (pt.z < min.z) min.z = pt.z;
@@ -932,7 +1063,7 @@ namespace bvh {
             updateCentroid();
         }
 
-        void expand(const AABB &bb) {
+        constexpr void expand(const AABB &bb) {
             if (bb.min.x < min.x) min.x = bb.min.x;
             if (bb.min.y < min.y) min.y = bb.min.y;
             if (bb.min.z < min.z) min.z = bb.min.z;
@@ -945,7 +1076,7 @@ namespace bvh {
             updateCentroid();
         }
 
-        void updateCentroid() {
+        constexpr void updateCentroid() {
             centroid.x = (min.x + max.x) * T(0.5);
             centroid.y = (min.y + max.y) * T(0.5);
             centroid.z = (min.z + max.z) * T(0.5);
@@ -953,7 +1084,7 @@ namespace bvh {
         }
 
         // Slab-based Ray vs. AABB intersection (4D)
-        bool intersectRay(const Ray<vec_type> &ray, T &tEnter, T &tExit) const {
+        constexpr bool intersectRay(const Ray<vec_type> &ray, T &tEnter, T &tExit) const {
             tEnter = -std::numeric_limits<T>::infinity();
             tExit = std::numeric_limits<T>::infinity();
 
@@ -982,7 +1113,35 @@ namespace bvh {
 
             return true;
         }
+        constexpr void clear() {
+            // Initialize "empty" box so any real expansions fix them
+            min.set(std::numeric_limits<scalar_type>::max());
+            max.set( std::numeric_limits<scalar_type>::lowest());
+
+            centroid.set(0);
+        }
+
+        constexpr T distanceSq(const vec_type &pt)const {
+            // For each axis, find the point on the AABB boundary closest to p
+            T dx = 0;
+            T dy = 0;
+            T dz = 0;
+            T dw= 0;
+            if (pt.x < min.x) dx = min.x - pt.x;
+            else if (pt.x > max.x) dx = pt.x - max.x;
+
+            if (pt.y < min.y) dy = min.y - pt.y;
+            else if (pt.y > max.y) dy = pt.y - max.y;
+
+            if (pt.z < min.z) dz = min.z - pt.z;
+            else if (pt.z > max.z) dz = pt.z - max.z;
+            if (pt.w < min.w) dw = min.w - pt.w;
+            else if (pt.w > max.w) dw = pt.w - max.w;
+            return dx*dx + dy*dy + dz*dz+dw*dw;
+        }
     };
+
+
 
     /*****************************************************************************************
      *  Operator<< for AABB
@@ -993,8 +1152,10 @@ namespace bvh {
         return os;
     }
 
+
     // Example typedef (for a 3D box with double precision):
     using AABB3d = AABB<vec<double, 3> >;
+
 } // end namespace bvh
 
 #endif // AABB_HEADER_H

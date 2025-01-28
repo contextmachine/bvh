@@ -38,3 +38,12 @@ test_raycast = executable('test_raycast',
 test('test_raycast',
      test_raycast)
 
+# test_raycast_eigen
+test_raycast_eigen = executable('test_raycast_eigen',
+                                'test_raycast_eigen.cpp',
+                                include_directories : my_inc,
+                                install : false,
+dependencies: [openmp_dep,eigen_dep],
+)
+test('test_raycast_eigen',
+     test_raycast_eigen)

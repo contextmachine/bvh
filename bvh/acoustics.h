@@ -9,6 +9,12 @@
 #include <cassert>
 #include <cmath>
 #include <math.h>
+#include "vec.h"
+#include "prims.h"
+
+#include "bvh.h"
+#include <Eigen/Core>
+#include <Eigen/Sparse>
 #define DEBUG 1
 namespace acoustics {
     template<class T>
@@ -110,14 +116,156 @@ namespace acoustics {
      */
     class Loxodrome {
     public:
+        T N;
         T phi(const T t) {
             return t*M_PI;
         }
+        T theta(const T t) {
+            return t*M_PI*2*N;
+        }
+        /*
+x(t) = \sin(\phi(t)) \cos(\theta(t))
+y(t) = \sin(\phi(t)) \sin(\theta(t))
+z(t) = \cos(\phi(t))
+         */
+        bvh::vec<T,3> evaluate(const T t) {
 
+            return bvh::vec<T,3>(
+                std::sin(phi(t))*std::cos(theta(t)),
+                std::sin(theta(t))*std::sin(phi(t)),
+                std::cos(phi(t)));
+        }
+        void evaluate(const T t,bvh::vec<T,3>&result) {
 
-
-
+            result.set(
+                std::sin(phi(t))*std::cos(theta(t)),
+                std::sin(theta(t))*std::sin(phi(t)),
+                std::cos(phi(t)));
+        }
+        void evaluate(const std::vector<T> &t, std::vector<bvh::vec<T,3> > &result) {
+            result.resize(t.size());
+            for(size_t i=0;i<result.size();++i) {
+                evaluate(t[i],result[i] );
+            }
+        }
     };
+    template<class T>
+    struct AcousticRay {
+        bvh::vec<T,3> start;
+        bvh::vec<T,3> direction;
+        size_t order=0;
+        T prev_dist=0;
+    };
+
+
+    template<class T>
+    struct TriM{
+        bvh::vec<T,3> a,b,c;
+        T absorption=Absorption<T>::walls;
+        void bbox(bvh::AABB<bvh::vec<T,3>> &bb) const {
+            bb.clear();
+            bb.expand(a);
+            bb.expand(b);
+            bb.expand(c);
+        }
+        bvh::AABB<bvh::vec<T,3>> bbox()const {
+            bvh::AABB<bvh::vec<T,3>> bb;
+            bb.expand(a);
+            bb.expand(b);
+            bb.expand(c);
+            return bb;
+        }
+    };
+
+        namespace detail {
+
+            // Then use it in your map:
+
+            inline void raycast_bvh_internal(const size_t ray_id,
+                const AcousticRay< double> &inp, const bvh::BVH &bvh, const std::vector<TriM<double>> &primitives,const size_t node_idx,
+                                        Eigen::SparseMatrix<Eigen::Vector4d> &prims_rays_hits, const double eps=1e-8) {
+                //bool result = node.bbox.clip(inp, out);
+                double start,end;
+                bool result =bvh.nodes[node_idx].bbox.intersectRay<AcousticRay<double>>(inp,start,end);
+
+
+
+                if (result) {
+                    auto &node = bvh.nodes[node_idx];
+                    if (node.isLeaf()) {
+
+                        if (start>eps) {
+                            auto& prim=primitives[node.object];
+                            auto end_pt=inp.start+(inp.direction*end);
+                            bvh::vec3d resv;
+                            int res=intersect_triangle_segment(prim.a,prim.b,prim.c,inp.start,end_pt, resv,eps);
+                            if (res>0) {
+
+                                prims_rays_hits.insert(node.object,ray_id)={
+                                    resv.x,
+                                    resv.y,
+                                    resv.z,
+                                    inp.direction.dot(resv-inp.start)
+                                };
+
+                            }
+                        }
+
+                    } else {
+
+                        raycast_bvh_internal(ray_id,inp, bvh, primitives, bvh.nodes[node_idx].left, prims_rays_hits, eps);
+                        raycast_bvh_internal(ray_id,inp,bvh,  primitives,bvh.nodes[node_idx].right, prims_rays_hits, eps);
+                    }
+                }
+            }
+            inline void raycast_ray_internal(const size_t node_id,
+                            const AcousticRay< double> &inp,
+                            const bvh::BVH &bvh,
+
+                            const std::vector<TriM<double>> &primitives,
+                            AcousticRay< double> &out, const double eps=1e-8) {
+                //bool result = node.bbox.clip(inp, out);
+
+                double start,end;
+                bool result =bvh.nodes[node_id].bbox.intersectRay<AcousticRay<double>>(inp,start,end);
+
+
+
+                if (result) {
+                    auto &node = bvh.nodes[node_id];
+                    if (node.isLeaf()) {
+
+                        if (start>eps) {
+                            auto& prim=primitives[node.object];
+                            auto end_pt=inp.start+(inp.direction*end);
+                            bvh::vec3d resv;
+                            int res=intersect_triangle_segment(prim.a,prim.b,prim.c,inp.start,end_pt, resv,eps);
+                            if (res>0) {
+
+
+                                out.start=resv;
+
+
+                                prims_rays_hits.insert(node.object,ray_id)={
+                                    resv.x,
+                                    resv.y,
+                                    resv.z,
+                                    inp.direction.dot(resv-inp.start)
+                                };
+
+                            }
+                        }
+
+                    } else {
+
+
+                        raycast_bvh_internal(ray_id,inp, bvh, primitives, bvh.nodes[node_idx].left, prims_rays_hits, eps);
+                        raycast_bvh_internal(ray_id,inp,bvh,  primitives,bvh.nodes[node_idx].right, prims_rays_hits, eps);
+                    }
+                }
+            }
+        }
+
 
     template<class T>
     class AcousticsSimulator {
@@ -126,8 +274,21 @@ namespace acoustics {
         AcousticsSimulator()=default;
         ~AcousticsSimulator()=default;
 
+            void calcultate_reflection() {
+
+            }
+
+            void loop() {
+                std::stack<bvh::Ray<bvh::vec<T,3>>>;
+            }
 
     };
+
+
+
+
+
+
 
 
 

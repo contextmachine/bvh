@@ -4,9 +4,12 @@
 
 #ifndef PRIMS_H
 #define PRIMS_H
+
 #include "typecodes.h"
 
 namespace bvh {
+    template <typename Vec> class AABB;
+
     template<typename Vec>
     /**
      * @struct Ray
@@ -28,6 +31,9 @@ namespace bvh {
         static constexpr size_t typecode=TYPE_RAY;
         Vec start;
         Vec direction;
+
+
+
     };
 
     template<typename Vec>
@@ -51,6 +57,18 @@ namespace bvh {
         static constexpr size_t typecode=TYPE_SEGM;
         Vec start;
         Vec end;
+
+        AABB<Vec> bbox()const {
+            AABB<Vec> bb;
+            bb.expand(start);
+            bb.expand(end);
+            return bb;
+        }
+        void bbox(AABB<Vec> &bb)const {
+            bb.clear();
+            bb.expand(start);
+            bb.expand(end);
+        }
     };
 
     template<typename Vec>
@@ -78,6 +96,19 @@ namespace bvh {
         Vec a;
         Vec b;
         Vec c;
+        AABB<Vec> bbox()const {
+            AABB<Vec> bb;
+            bb.expand(a);
+            bb.expand(b);
+            bb.expand(c);
+            return bb;
+        }
+        void bbox(AABB<Vec> &bb)const {
+            bb.clear();
+            bb.expand(a);
+            bb.expand(b);
+            bb.expand(c);
+        }
     };
 }
 

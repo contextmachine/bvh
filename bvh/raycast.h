@@ -14,12 +14,24 @@
 #include <utility>
 #include <cstddef>
 #include <functional>
+
 namespace bvh {
     struct Hit {
 
         double first;
         vec<double,3> second;
         size_t prim;
+        Hit& operator=(const Hit& other) {
+            if (&other==this) {
+                return *this;
+            }
+            first=other.first;
+            second=other.second;
+            prim=other.prim;
+            return *this;
+
+
+        }
 
     };
     struct PrimHit {
@@ -86,6 +98,7 @@ namespace bvh {
 
                 } else {
 
+
                     raycast_bvh_internal(ray_id,inp,dir, bvh,  bvh.nodes[node_idx].left, prims_rays_hits);
                     raycast_bvh_internal(ray_id,inp, dir,bvh,  bvh.nodes[node_idx].right, prims_rays_hits);
                 }
@@ -109,6 +122,8 @@ namespace bvh {
 
                     if (res > 0) {
 
+
+
                         hits.push_back( {dir.dot(hit-inp.start),hit,(size_t)node.object});
                     }
                 } else {
@@ -118,6 +133,71 @@ namespace bvh {
                 }
             }
         }
+        inline bool raycast_internal_first(const Segm<vec<double, 3> > &inp, const vec<double,3> &dir, const BVH &bvh, size_t node_idx,
+                                 Hit &hit, const std::vector<Tri<vec3d> > &primitives, const bool include_start=true) {
+            auto &node = bvh.nodes[node_idx];
+
+                if (node.isLeaf()) {
+
+                    const Tri<vec<double, 3> > &primitive = primitives[node.object];
+                    vec<double, 3> hitv;
+                    int res = intersect_triangle_segment<double>(primitive.a, primitive.b, primitive.c, inp.start,
+                                                                 inp.end, hitv,
+                                                                 1e-8);
+                    printf("%f,%f,%f\n",hitv.x,hitv.y,hitv.z);
+                    if (res > 0) {
+                        if (!include_start) {
+                            if ((hitv-inp.start).sqLength()<=CMMCORE_SQRT_EPSILON<double>()) {
+                                return false ;
+                            }
+
+                        }
+
+
+                        hit.first=dir.dot(hitv-inp.start);
+                        hit.second=hitv;
+                        hit.prim=node.object;
+                        return true;
+                    }
+                }
+                else {
+                    Segm<vec3d> ss;
+
+                    if  (node.bbox.clip(inp,ss)){
+                        Hit hl,hr;
+
+
+                        bool rl=raycast_internal_first(inp, dir, bvh, node.left, hl, primitives, include_start);
+
+                        bool rr=raycast_internal_first(inp, dir,bvh, node.right, hr, primitives,include_start);
+                        if (rl && rr) {
+                            if (hl.first<hr.first) {
+                                hit=hl;
+                            } else {
+                                hit=hr;
+                            }
+                            return true;
+                        } else if (rl) {
+                            hit.first=hl.first;
+                            hit.second.set(hl.second.x,hl.second.y,hl.second.z);
+                            hit.prim=hl.prim;
+
+                            return true;
+
+                        } else if (rr) {
+                            hit.first=hr.first;
+                            hit.second.set(hr.second.x,hr.second.y,hr.second.z);
+                            hit.prim=hr.prim;
+
+                            return true;
+
+                        }
+                    }
+                }
+            return false;
+            }
+
+
         inline void raycast_internal(const Segm<vec<double, 3> > &inp, const BVH &bvh, size_t node_idx,
                                       const std::vector<Tri<vec3d> > &primitives, size_t &counts) {
             auto &node = bvh.nodes[node_idx];
@@ -292,13 +372,15 @@ namespace bvh {
                         const BVH &bvh,
                         const std::vector<Tri<vec3d> > &primitives,
                         std::vector<Hit> &hits,
-                        std::vector<size_t> &counts) {
+                        std::vector<size_t> &counts,const bool include_start=true) {
+        hits.clear();
+        counts.clear();
         hits.resize(rays.size());
-        counts.resize(rays.size());
+        counts.resize(rays.size(),0);
 
 #pragma omp parallel for
         for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(rays.size()); ++i) {
-            std::vector<Hit> tmp;
+            Hit tmp;
             double tmin = 0;
             double tmax = 0;
             auto& ray=rays[i];
@@ -307,16 +389,21 @@ namespace bvh {
             if (res == 0) { continue; };
 
             Segm<vec<double, 3> > inp = {ray.start, ray.start + ray.direction * tmax};
+            printf("%f,%f,%f\n",ray.direction.x,ray.direction.y,ray.direction.z);
+            bool rs=detail::raycast_internal_first(inp,ray.direction, bvh, 0, tmp, primitives, include_start);
 
-            detail::raycast_internal(inp,ray.direction, bvh, 0, tmp, primitives);
-            counts[i] = tmp.size();
-            if (counts[i]==0) {
-                continue;
+            if (rs) {
+                counts[i]=1;
+                hits[i]=tmp;
+            } else {
+                counts[i]=0;
+
             }
-            std::sort(tmp.begin(), tmp.end(),[](auto const& lhs, auto const& rhs) {
-                return lhs.first < rhs.first;
-            });
-            hits[i]=tmp[0];
+
+
+
+
+
             
 
 
