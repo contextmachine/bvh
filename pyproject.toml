@@ -1,7 +1,7 @@
 [build-system]
-requires = ["poetry-core>=1.0,<2.0", "cython", "numpy", "setuptools", "pytest>8.3.2", "pyMSVC;sys_platform=='win32'"]
+requires = [ "poetry-core>=1.9.0", "cython", "numpy", "setuptools", "pyMSVC==0.5.4;sys_platform=='win32'","comtypes==1.1.11;sys_platform=='win32'" ]
 build-backend = "poetry.core.masonry.api"
-
+  
 [tool.poetry.build]
 generate-setup-file = false
 script = 'build.py'
