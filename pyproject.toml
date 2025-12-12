@@ -7,8 +7,12 @@ requires = [
   "numpy==2.0.2; python_version < '3.13'",
   "numpy>=2.1.0; python_version >= '3.13'",
 
-  "pyMSVC==0.5.4; sys_platform=='win32'",
-  "comtypes==1.1.11; sys_platform=='win32'",
+  "pyMSVC==0.5.4; sys_platform=='win32' and python_version < '3.13'",
+  "comtypes==1.1.11; sys_platform=='win32' and python_version < '3.13'",
+
+  "pyMSVC==0.6.1; sys_platform=='win32' and python_version >= '3.13'",
+  "comtypes>=1.4.8; sys_platform=='win32' and python_version >= '3.13'"
+
 ]
 build-backend = "poetry.core.masonry.api"
 
