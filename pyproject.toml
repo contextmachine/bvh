@@ -11,7 +11,8 @@ requires = [
   "comtypes==1.1.11; sys_platform=='win32' and python_version < '3.13'",
 
   "pyMSVC==0.6.1; sys_platform=='win32' and python_version >= '3.13'",
-  "comtypes>=1.4.8; sys_platform=='win32' and python_version >= '3.13'"
+  "comtypes>=1.4.8; sys_platform=='win32' and python_version >= '3.13'",
+  "vswhere>=1.4.0; sys_platform=='win32'",
 
 ]
 build-backend = "poetry.core.masonry.api"
